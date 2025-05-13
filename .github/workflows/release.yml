@@ -3,23 +3,19 @@ name: release
 on:
   release:
     types: [created]
+
 jobs:
   release:
-    name: release ${{ matrix.target }}
+    name: Create Release
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        target: [x86_64-unknown-linux-musl]
     steps:
-      - uses: actions/checkout@master
-      - name: Compile and release
-        id: compile
-        uses: rust-build/rust-build.action@v1.4.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check out code
+        uses: actions/checkout@v3
         with:
-          TOOLCHAIN_VERSION : 1.86.0
-          RUSTTARGET: ${{ matrix.target }}
-          ARCHIVE_TYPES: "zip tar.gz"
-          # ARCHIVE_NAME: "roc_${{ matrix.target }}"
+          fetch-depth: 2
+
+      - name: Create Release
+        uses: tristanpoland/rust-multi-platform-release@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          targets: x86_64-unknown-linux-musl
