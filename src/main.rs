@@ -1,45 +1,12 @@
+mod cli;
+
 use chrono::{DateTime, Utc};
-use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::{net::IpAddr, path::PathBuf, sync::Arc};
 use warp::{http::StatusCode, Filter};
 
-#[derive(Parser)]
-#[command(name = "pulson")]
-/// realtime system/robot monitoring and tracing
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Run the HTTP server
-    Serve {
-        /// Address to bind (e.g. 0.0.0.0)
-        #[arg(short, long, default_value = "0.0.0.0")]
-        host: String,
-        /// Port to listen on
-        #[arg(short, long, default_value_t = 3030)]
-        port: u16,
-        /// Path to database file (supports `~`)
-        #[arg(short, long, default_value = "~/.local/share/pulson")]
-        db_path: String,
-        /// Run as daemon in background (Unix only)
-        #[arg(long)]
-        daemon: bool,
-    },
-
-    /// Query the running server for all tracked devices
-    List {
-        /// Address where pulson is running
-        #[arg(short, long, default_value = "127.0.0.1")]
-        host: String,
-        /// Port where pulson is listening
-        #[arg(short, long, default_value_t = 3030)]
-        port: u16,
-    },
-}
+use clap::Parser;
+use cli::{Cli, Commands};
 
 #[derive(Deserialize)]
 struct PingPayload {
@@ -54,7 +21,7 @@ struct DeviceInfo {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let args = Cli::parse();
+    let args = Cli::try_parse()?;
 
     match args.command {
         Commands::Serve {
@@ -72,14 +39,11 @@ async fn main() -> anyhow::Result<()> {
                     .start()?;
             }
 
-            // Expand `~` (and env vars) in the db_path
-            let db_path_expanded = shellexpand::tilde(&db_path).into_owned();
-            let db_path_buf = PathBuf::from(db_path_expanded);
+            // expand ~
+            let db_path = shellexpand::tilde(&db_path).into_owned();
+            let db = Arc::new(sled::open(PathBuf::from(db_path))?);
 
-            // open sled database
-            let db = Arc::new(sled::open(db_path_buf)?);
-
-            // POST /ping → record device_id => now
+            // POST /ping
             let ping_db = db.clone();
             let ping = warp::post()
                 .and(warp::path("ping"))
@@ -90,35 +54,32 @@ async fn main() -> anyhow::Result<()> {
                     StatusCode::OK
                 });
 
-            // GET /devices → list all { device_id, last_seen }
+            // GET /devices
             let list_db = db.clone();
             let list = warp::get().and(warp::path("devices")).map(move || {
                 let mut devices = Vec::new();
-                for item in list_db.iter() {
-                    if let Ok((k, v)) = item {
-                        if let (Ok(id), Ok(ts_str)) =
-                            (String::from_utf8(k.to_vec()), String::from_utf8(v.to_vec()))
-                        {
-                            if let Ok(dt) = DateTime::parse_from_rfc3339(&ts_str) {
-                                devices.push(DeviceInfo {
-                                    device_id: id,
-                                    last_seen: dt.with_timezone(&Utc),
-                                });
-                            }
+                for item in list_db.iter().flatten() {
+                    if let (Ok(id), Ok(ts)) = (
+                        String::from_utf8(item.0.to_vec()),
+                        String::from_utf8(item.1.to_vec()),
+                    ) {
+                        if let Ok(dt) = DateTime::parse_from_rfc3339(&ts) {
+                            devices.push(DeviceInfo {
+                                device_id: id,
+                                last_seen: dt.with_timezone(&Utc),
+                            });
                         }
                     }
                 }
                 warp::reply::json(&devices)
             });
 
-            let routes = ping.or(list);
-            let ip: IpAddr = host.parse()?;
             println!("pulson server running on http://{}:{}", host, port);
-            warp::serve(routes).run((ip, port)).await;
+            let ip: IpAddr = host.parse()?;
+            warp::serve(ping.or(list)).run((ip, port)).await;
         }
 
         Commands::List { host, port } => {
-            // HTTP GET /devices
             let url = format!("http://{}:{}/devices", host, port);
             let devices: Vec<DeviceInfo> = reqwest::get(&url).await?.json().await?;
 
