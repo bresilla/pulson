@@ -4,6 +4,14 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(name = "pulson")]
 pub struct Cli {
+    /// Address to bind (serve) or connect to (client)
+    #[arg(short = 'H', long, default_value = "127.0.0.1")]
+    pub host: String,
+
+    /// Port to bind or connect to
+    #[arg(short, long, default_value_t = 3030)]
+    pub port: u16,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -12,14 +20,6 @@ pub struct Cli {
 pub enum Commands {
     /// Run the HTTP server
     Serve {
-        /// Address to bind (e.g. 127.0.0.1)
-        #[arg(short, long, default_value = "127.0.0.1")]
-        host: String,
-
-        /// Port to listen on
-        #[arg(short, long, default_value_t = 3030)]
-        port: u16,
-
         /// Path to database file (supports `~`)
         #[arg(short, long, default_value = "~/.local/share/pulson")]
         db_path: String,
@@ -31,14 +31,6 @@ pub enum Commands {
 
     /// Query the running server for all tracked devices (or topics for one)
     List {
-        /// Address where pulson is running
-        #[arg(short, long, default_value = "127.0.0.1")]
-        host: String,
-
-        /// Port where pulson is listening
-        #[arg(short, long, default_value_t = 3030)]
-        port: u16,
-
         /// If provided, show topics just for this device
         #[arg(value_name = "DEVICE_ID")]
         device_id: Option<String>,
@@ -46,19 +38,11 @@ pub enum Commands {
 
     /// Send a ping (POST /ping) for a given device_id and topic
     Ping {
-        /// Address where pulson is running
-        #[arg(short, long, default_value = "127.0.0.1")]
-        host: String,
-
-        /// Port where pulson is listening
-        #[arg(short, long, default_value_t = 3030)]
-        port: u16,
-
         /// Device ID to ping
         #[arg(short = 'd', long)]
         device_id: String,
 
-        /// Topic for this ping (slash‐separated)
+        /// Topic for this ping (slash-separated)
         #[arg(short = 't', long)]
         topic: String,
     },
