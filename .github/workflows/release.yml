@@ -14,8 +14,8 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Create Release
-        uses: tristanpoland/rust-multi-platform-release@v1
+      - name: Publish artifacts and release
+        uses: houseabsolute/actions-rust-release@v0
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          targets: x86_64-unknown-linux-musl
+          executable-name: ${{ github.event.repository.name }}
+          target: x86_64-unknown-linux-musl
