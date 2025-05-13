@@ -24,7 +24,7 @@ enum Commands {
         #[arg(short, long, default_value_t = 3030)]
         port: u16,
         /// Path to database file
-        #[arg(short, long, default_value = "pulson_db")]
+        #[arg(short, long, default_value = ".db")]
         db_path: PathBuf,
         /// Run as daemon in background (Unix only)
         #[arg(long)]
