@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.6] - 2025-05-13
+## [0.0.7] - 2025-05-13
 
 ### <!-- 0 -->⛰️  Features
 
@@ -20,6 +20,7 @@
 
 ### <!-- 7 -->⚙️ Miscellaneous Tasks
 
+- Use new GitHub Action to release project binaries
 - Refactor GitHub Actions release workflow
 - Add new GitHub Actions
 

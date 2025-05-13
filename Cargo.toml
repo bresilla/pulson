@@ -1,6 +1,6 @@
 [package]
 name = "pulson"
-version = "0.0.6"
+version = "0.0.7"
 authors = ["Trim Bresilla <trim.bresilla@gmail.com>"]
 description = "realtime system/robot monitoring and tracing"
 edition = "2021"
