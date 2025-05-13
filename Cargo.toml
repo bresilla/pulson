@@ -3,5 +3,19 @@ name = "pulson"
 version = "0.0.1"
 authors = ["Trim Bresilla <trim.bresilla@gmail.com>"]
 description = "realtime system/robot monitoring and tracing"
-edition = "2024"
+edition = "2021"
 license = "MIT"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+warp = "0.3"
+clap = { version = "4.1", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sled = "0.34"
+chrono = { version = "0.4", features = ["serde"] }
+daemonize = "0.4"
+anyhow = "1.0"
+
+# add HTTP client for list
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
