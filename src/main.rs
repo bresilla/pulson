@@ -1,8 +1,7 @@
 use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
-use std::net::IpAddr;
-use std::{path::PathBuf, sync::Arc};
+use std::{net::IpAddr, path::PathBuf, sync::Arc};
 use warp::{http::StatusCode, Filter};
 
 #[derive(Parser)]
@@ -23,9 +22,9 @@ enum Commands {
         /// Port to listen on
         #[arg(short, long, default_value_t = 3030)]
         port: u16,
-        /// Path to database file
-        #[arg(short, long, default_value = ".db")]
-        db_path: PathBuf,
+        /// Path to database file (supports `~`)
+        #[arg(short, long, default_value = "~/.local/share/pulson")]
+        db_path: String,
         /// Run as daemon in background (Unix only)
         #[arg(long)]
         daemon: bool,
@@ -73,8 +72,12 @@ async fn main() -> anyhow::Result<()> {
                     .start()?;
             }
 
+            // Expand `~` (and env vars) in the db_path
+            let db_path_expanded = shellexpand::tilde(&db_path).into_owned();
+            let db_path_buf = PathBuf::from(db_path_expanded);
+
             // open sled database
-            let db = Arc::new(sled::open(db_path)?);
+            let db = Arc::new(sled::open(db_path_buf)?);
 
             // POST /ping → record device_id => now
             let ping_db = db.clone();
