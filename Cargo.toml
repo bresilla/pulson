@@ -1,0 +1,7 @@
+[package]
+name = "pulson"
+version = "0.0.1"
+authors = ["Trim Bresilla <trim.bresilla@gmail.com>"]
+description = "realtime system/robot monitoring and tracing"
+edition = "2024"
+license = "MIT"
