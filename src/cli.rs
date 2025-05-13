@@ -1,4 +1,3 @@
-// src/cli.rs
 use clap::{Parser, Subcommand};
 
 /// realtime system/robot monitoring and tracing
@@ -13,8 +12,8 @@ pub struct Cli {
 pub enum Commands {
     /// Run the HTTP server
     Serve {
-        /// Address to bind (e.g. 0.0.0.0)
-        #[arg(short, long, default_value = "0.0.0.0")]
+        /// Address to bind (e.g. 127.0.0.1)
+        #[arg(short, long, default_value = "127.0.0.1")]
         host: String,
 
         /// Port to listen on
@@ -30,7 +29,7 @@ pub enum Commands {
         daemon: bool,
     },
 
-    /// Query the running server for all tracked devices
+    /// Query the running server for all tracked devices (or topics for one)
     List {
         /// Address where pulson is running
         #[arg(short, long, default_value = "127.0.0.1")]
@@ -39,9 +38,13 @@ pub enum Commands {
         /// Port where pulson is listening
         #[arg(short, long, default_value_t = 3030)]
         port: u16,
+
+        /// If provided, show topics just for this device
+        #[arg(value_name = "DEVICE_ID")]
+        device_id: Option<String>,
     },
 
-    /// Send a ping (POST /ping) for a given device_id
+    /// Send a ping (POST /ping) for a given device_id and topic
     Ping {
         /// Address where pulson is running
         #[arg(short, long, default_value = "127.0.0.1")]
@@ -52,7 +55,11 @@ pub enum Commands {
         port: u16,
 
         /// Device ID to ping
-        #[arg(short, long)]
+        #[arg(short = 'd', long)]
         device_id: String,
+
+        /// Topic for this ping (slash‐separated)
+        #[arg(short = 't', long)]
+        topic: String,
     },
 }

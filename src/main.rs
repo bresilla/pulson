@@ -15,12 +15,17 @@ async fn main() -> anyhow::Result<()> {
             db_path,
             daemon,
         } => logic::serve::run(host, port, db_path, daemon).await?,
-        Commands::List { host, port } => logic::list::run(host, port).await?,
+        Commands::List {
+            host,
+            port,
+            device_id,
+        } => logic::list::run(host, port, device_id).await?,
         Commands::Ping {
             host,
             port,
             device_id,
-        } => logic::ping::run(host, port, device_id).await?,
+            topic,
+        } => logic::ping::run(host, port, device_id, topic).await?,
     }
 
     Ok(())
