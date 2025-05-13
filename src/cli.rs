@@ -40,4 +40,19 @@ pub enum Commands {
         #[arg(short, long, default_value_t = 3030)]
         port: u16,
     },
+
+    /// Send a ping (POST /ping) for a given device_id
+    Ping {
+        /// Address where pulson is running
+        #[arg(short, long, default_value = "127.0.0.1")]
+        host: String,
+
+        /// Port where pulson is listening
+        #[arg(short, long, default_value_t = 3030)]
+        port: u16,
+
+        /// Device ID to ping
+        #[arg(short, long)]
+        device_id: String,
+    },
 }
