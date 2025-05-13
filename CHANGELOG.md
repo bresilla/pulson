@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.4] - 2025-05-13
+## [0.0.5] - 2025-05-13
 
 ### <!-- 0 -->⛰️  Features
 
@@ -18,6 +18,7 @@
 
 ### Build
 
+- Bump release toolchain version
 - Refactor Pulson database handling
 
 <!-- WARP -->
