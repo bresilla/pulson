@@ -112,7 +112,7 @@ pulson ping -d foo -t bar
 
 ### Dependencies
 
-#### [Rustup](https://rustup.rs/)
+#### Rustup [Rustup](https://rustup.rs/)
 
 Install 
 ```bash
@@ -123,7 +123,7 @@ Setup
 rustup default stable
 ```
 
-#### [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
+#### WASM [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
 Install
 ```
 curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
@@ -139,7 +139,7 @@ wasm-pack --version
 
 ### Build
 
-#### WASM target
+#### Add WASM target
 
 ```bash
 rustup target add wasm32-unknown-unknown
