@@ -4,7 +4,7 @@ use serde_json::json;
 use std::{collections::HashMap, net::IpAddr, path::PathBuf, sync::Arc};
 use uuid::Uuid;
 use warp::reply::{json as warp_json, with_status};
-use warp::{http::StatusCode, Filter, Rejection, Reply};
+use warp::{http::StatusCode, Filter, Rejection};
 
 use crate::logic::types::{DeviceInfo, TopicInfo};
 
@@ -26,7 +26,7 @@ struct PingPayload {
 }
 
 pub async fn run(host: String, port: u16, db_path: String, daemon: bool) -> anyhow::Result<()> {
-    // 1) Optionally daemonize
+    // 1) Daemonize if requested
     if daemon {
         Daemonize::new()
             .pid_file("pulson.pid")
@@ -40,7 +40,7 @@ pub async fn run(host: String, port: u16, db_path: String, daemon: bool) -> anyh
     let db = Arc::new(sled::open(PathBuf::from(expanded))?);
 
     //
-    // 3) Unprotected endpoints: account/register & account/login
+    // 3) Unprotected endpoints: register & login
     //
 
     // POST /account/register
@@ -67,8 +67,7 @@ pub async fn run(host: String, port: u16, db_path: String, daemon: bool) -> anyh
         .and(warp::body::json())
         .map(move |payload: AccountPayload| {
             let key = format!("user:{}", payload.username);
-            // both arms must return WithStatus<Json<Value>>
-            let json_err = || {
+            let err_reply = || {
                 with_status(
                     warp_json(&json!({ "error": "invalid credentials" })),
                     StatusCode::UNAUTHORIZED,
@@ -84,31 +83,30 @@ pub async fn run(host: String, port: u16, db_path: String, daemon: bool) -> anyh
                     );
                     with_status(warp_json(&json!({ "token": token })), StatusCode::OK)
                 }
-                _ => json_err(),
+                _ => err_reply(),
             }
         });
 
     //
-    // 4) Authentication filter
+    // 4) Auth filter that yields `username: String`
     //
 
-    // This filter extracts the `Authorization` header, expects "Bearer <token>",
-    // and checks sled for a key "token:<token>" → username.
-    let auth = {
+    let auth_user = {
         let db = db.clone();
         warp::header::optional::<String>("authorization").and_then(move |auth: Option<String>| {
             let db = db.clone();
             async move {
-                // missing header?
                 let header = auth.ok_or_else(|| warp::reject::custom(Unauthorized))?;
-                // must be "Bearer <token>"
                 let token = header
                     .strip_prefix("Bearer ")
                     .ok_or_else(|| warp::reject::custom(Unauthorized))?;
-                // token must exist in DB
                 let key = format!("token:{}", token);
-                match db.get(key.as_bytes()) {
-                    Ok(Some(_username)) => Ok(()),
+                match db.get(key.as_bytes()).ok().flatten() {
+                    Some(user_bytes) => {
+                        let user = String::from_utf8(user_bytes.to_vec())
+                            .map_err(|_| warp::reject::custom(Unauthorized))?;
+                        Ok(user)
+                    }
                     _ => Err(warp::reject::custom(Unauthorized)),
                 }
             }
@@ -123,40 +121,44 @@ pub async fn run(host: String, port: u16, db_path: String, daemon: bool) -> anyh
     let ping_db = db.clone();
     let ping = warp::post()
         .and(warp::path("ping"))
-        .and(auth.clone())
+        .and(auth_user.clone())
         .and(warp::body::json())
-        .map(move |(): (), payload: PingPayload| {
+        .map(move |username: String, payload: PingPayload| {
             let ts = Utc::now().to_rfc3339();
-            let key = format!("{}|{}", payload.device_id, payload.topic);
+            let key = format!("{}|{}|{}", username, payload.device_id, payload.topic);
             let _ = ping_db.insert(key.as_bytes(), ts.as_bytes());
             StatusCode::OK
         });
 
-    // GET /devices  → list all devices
+    // GET /devices → list all devices for this user
     let list_all = {
         let db = db.clone();
         warp::get()
             .and(warp::path("devices"))
             .and(warp::path::end())
-            .and(auth.clone())
-            .map(move |(): ()| {
-                let mut latest = HashMap::new();
+            .and(auth_user.clone())
+            .map(move |username: String| {
+                let mut latest: HashMap<String, DateTime<Utc>> = HashMap::new();
                 for item in db.iter().flatten() {
                     if let (Ok(k), Ok(v)) = (
                         String::from_utf8(item.0.to_vec()),
                         String::from_utf8(item.1.to_vec()),
                     ) {
-                        if let Some((device, _)) = k.split_once('|') {
-                            if let Ok(dt) = DateTime::parse_from_rfc3339(&v) {
-                                let ts = dt.with_timezone(&Utc);
-                                latest
-                                    .entry(device.to_string())
-                                    .and_modify(|old: &mut DateTime<Utc>| {
-                                        if ts > *old {
-                                            *old = ts;
-                                        }
-                                    })
-                                    .or_insert(ts);
+                        // key = "{user}|{device}|{topic}"
+                        if let Some(rest) = k.strip_prefix(&format!("{}|", username)) {
+                            // rest = "{device}|{topic}"
+                            if let Some((device, _)) = rest.split_once('|') {
+                                if let Ok(dt) = DateTime::parse_from_rfc3339(&v) {
+                                    let ts = dt.with_timezone(&Utc);
+                                    latest
+                                        .entry(device.to_string())
+                                        .and_modify(|old| {
+                                            if ts > *old {
+                                                *old = ts
+                                            }
+                                        })
+                                        .or_insert(ts);
+                                }
                             }
                         }
                     }
@@ -172,28 +174,28 @@ pub async fn run(host: String, port: u16, db_path: String, daemon: bool) -> anyh
             })
     };
 
-    // GET /devices/{device_id} → list topics for that device
+    // GET /devices/{device_id} → list topics for that device, for this user
     let list_one = {
         let db = db.clone();
         warp::get()
             .and(warp::path("devices"))
             .and(warp::path::param::<String>())
-            .and(auth.clone())
-            .map(move |device_id: String, (): ()| {
+            .and(auth_user.clone())
+            .map(move |device_id: String, username: String| {
                 let mut topics = Vec::new();
                 for item in db.iter().flatten() {
                     if let (Ok(k), Ok(v)) = (
                         String::from_utf8(item.0.to_vec()),
                         String::from_utf8(item.1.to_vec()),
                     ) {
-                        if let Some((dev, topic)) = k.split_once('|') {
-                            if dev == device_id {
-                                if let Ok(dt) = DateTime::parse_from_rfc3339(&v) {
-                                    topics.push(TopicInfo {
-                                        topic: topic.to_string(),
-                                        last_seen: dt.with_timezone(&Utc),
-                                    });
-                                }
+                        // key = "{user}|{device}|{topic}"
+                        let prefix = format!("{}|{}|", username, device_id);
+                        if let Some(topic) = k.strip_prefix(&prefix) {
+                            if let Ok(dt) = DateTime::parse_from_rfc3339(&v) {
+                                topics.push(TopicInfo {
+                                    topic: topic.to_string(),
+                                    last_seen: dt.with_timezone(&Utc),
+                                });
                             }
                         }
                     }
@@ -203,7 +205,7 @@ pub async fn run(host: String, port: u16, db_path: String, daemon: bool) -> anyh
     };
 
     //
-    // 6) Combine & handle auth failures
+    // 6) Combine & recover Unauthorized → 401 JSON error
     //
 
     let routes = register
@@ -218,7 +220,6 @@ pub async fn run(host: String, port: u16, db_path: String, daemon: bool) -> anyh
                     StatusCode::UNAUTHORIZED,
                 ))
             } else {
-                // re-reject everything else
                 Err(err)
             }
         });
