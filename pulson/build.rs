@@ -17,7 +17,9 @@ fn main() {
     let ui_dir = parent_dir.join("pulson-ui");
     let dist_dir = ui_dir.join("ui").join("dist");
     let static_index = ui_dir.join("static").join("index.html");
+    let static_css = ui_dir.join("static").join("style.css");
     let dist_index = dist_dir.join("index.html");
+    let dist_css = dist_dir.join("style.css");
 
     // 3) Build the UI via wasm-pack
     let status = Command::new("wasm-pack")
@@ -39,4 +41,5 @@ fn main() {
     }
 
     fs::copy(static_index, dist_index).expect("failed to copy index.html");
+    fs::copy(static_css, dist_css).expect("failed to copy style.css");
 }
