@@ -16,18 +16,17 @@ use warp::{
 
 use crate::logic::types::{DeviceInfo, TopicInfo};
 
-/// Embed everything in `pulson-ui/ui/dist` at compile time.
-/// **Make sure** that directory exists (with `index.html`, your WASM/JS, CSS, etc.) before building!
+/// Embed the UI dist directory at compile time
 #[derive(RustEmbed)]
 #[folder = "../pulson-ui/ui/dist"]
 struct Asset;
 
-/// A rejection used when auth fails
+/// Custom rejection for auth failures
 #[derive(Debug)]
 struct Unauthorized;
 impl Reject for Unauthorized {}
 
-/// JSON payloads for account and ping endpoints
+/// Incoming JSON payloads
 #[derive(serde::Deserialize)]
 struct AccountPayload {
     username: String,
@@ -46,9 +45,9 @@ pub async fn run(
     db_path: String,
     daemon: bool,
     root_pass: Option<String>,
-    _webui: bool, // unused, since UI is embedded
+    _webui: bool,
 ) -> anyhow::Result<()> {
-    // 1) Daemonize if requested
+    // Daemonize if requested
     if daemon {
         Daemonize::new()
             .pid_file("pulson.pid")
@@ -57,24 +56,23 @@ pub async fn run(
             .start()?;
     }
 
-    // 2) Open (or create) Sled DB, expanding `~`
+    // Open Sled DB
     let expanded = shellexpand::tilde(&db_path).into_owned();
     let db = Arc::new(sled::open(PathBuf::from(expanded))?);
 
     //
-    // 3) ACCOUNT /register
+    // ACCOUNT /register
     //
     let reg_db = db.clone();
     let register = warp::post()
         .and(warp::path!("account" / "register"))
         .and(warp::body::json())
         .map(move |payload: AccountPayload| {
-            let user_key = format!("user:{}", payload.username);
-            if reg_db.contains_key(user_key.as_bytes()).unwrap_or(false) {
+            let key = format!("user:{}", payload.username);
+            if reg_db.contains_key(key.as_bytes()).unwrap_or(false) {
                 return StatusCode::CONFLICT;
             }
-            let _ = reg_db.insert(user_key.as_bytes(), payload.password.as_bytes());
-
+            let _ = reg_db.insert(key.as_bytes(), payload.password.as_bytes());
             let role = if payload
                 .rootpass
                 .as_ref()
@@ -87,36 +85,34 @@ pub async fn run(
             };
             let role_key = format!("role:{}", payload.username);
             let _ = reg_db.insert(role_key.as_bytes(), role.as_bytes());
-
             StatusCode::CREATED
         });
 
     //
-    // 4) ACCOUNT /login
+    // ACCOUNT /login
     //
     let login_db = db.clone();
     let login = warp::post()
         .and(warp::path!("account" / "login"))
         .and(warp::body::json())
         .map(move |payload: AccountPayload| {
-            let user_key = format!("user:{}", payload.username);
+            let key = format!("user:{}", payload.username);
             let err = || {
                 with_status(
                     warp_json(&json!({ "error": "invalid credentials" })),
                     StatusCode::UNAUTHORIZED,
                 )
             };
-
             match login_db
-                .get(user_key.as_bytes())
+                .get(key.as_bytes())
                 .ok()
                 .flatten()
                 .map(|v| v.to_vec())
             {
                 Some(stored) if stored == payload.password.as_bytes() => {
                     let token = Uuid::new_v4().to_string();
-                    let token_key = format!("token:{}", token);
-                    let _ = login_db.insert(token_key.as_bytes(), payload.username.as_bytes());
+                    let tok_key = format!("token:{}", token);
+                    let _ = login_db.insert(tok_key.as_bytes(), payload.username.as_bytes());
                     with_status(warp_json(&json!({ "token": token })), StatusCode::OK)
                 }
                 _ => err(),
@@ -124,21 +120,21 @@ pub async fn run(
         });
 
     //
-    // 5) Authentication filter
+    // Auth filter
     //
     let auth = authenticated_user(db.clone());
 
     //
-    // 6) ACCOUNT /delete/<user> (root only)
+    // ACCOUNT /delete/<user>
     //
     let del_db = db.clone();
     let delete_user = warp::delete()
         .and(warp::path!("account" / String))
         .and(auth.clone())
         .map(move |target: String, caller: String| {
-            let caller_role_key = format!("role:{}", caller);
-            if let Ok(Some(role)) = del_db.get(caller_role_key.as_bytes()) {
-                if role.as_ref() == b"root" {
+            let role_key = format!("role:{}", caller);
+            if let Ok(Some(role)) = del_db.get(role_key.as_bytes()) {
+                if &*role == b"root" {
                     let _ = del_db.remove(format!("user:{}", target).as_bytes());
                     let _ = del_db.remove(format!("role:{}", target).as_bytes());
                     return StatusCode::OK;
@@ -148,7 +144,7 @@ pub async fn run(
         });
 
     //
-    // 7) ACCOUNT /users (list—all users, root only)
+    // ACCOUNT /users
     //
     let list_users = {
         let db = db.clone();
@@ -169,7 +165,6 @@ pub async fn run(
                         StatusCode::FORBIDDEN,
                     );
                 }
-
                 let mut users = Vec::new();
                 for item in db.iter().flatten() {
                     let key = String::from_utf8_lossy(&item.0);
@@ -188,7 +183,7 @@ pub async fn run(
     };
 
     //
-    // 8) POST /ping
+    // POST /ping
     //
     let ping_db = db.clone();
     let ping = warp::post()
@@ -203,7 +198,7 @@ pub async fn run(
         });
 
     //
-    // 9) GET /devices
+    // GET /devices
     //
     let list_all = {
         let db = db.clone();
@@ -245,7 +240,7 @@ pub async fn run(
     };
 
     //
-    // 10) GET /devices/<device_id>
+    // GET /devices/<device_id>
     //
     let list_one = {
         let db = db.clone();
@@ -277,7 +272,7 @@ pub async fn run(
     };
 
     //
-    // 11) Combine API routes, with Unauthorized recovery
+    // Combine API with Unauthorized recovery
     //
     let api = register
         .or(login)
@@ -299,40 +294,42 @@ pub async fn run(
         .boxed();
 
     //
-    // 12) Embedded UI routes
+    // Serve static files under /static/<path>
     //
-
-    // Serve `index.html` at `/`
-    let index_html = warp::get().and(warp::path::end()).map(|| {
-        let file = Asset::get("index.html").expect(
-            "`index.html` missing from embedded assets; \
-                         ensure `pulson-ui/ui/dist/index.html` exists",
-        );
-        Response::builder()
-            .header("content-type", "text/html; charset=utf-8")
-            .body(file.data.into_owned())
-    });
-
-    // Serve everything else under `/static/<path>`
     let static_files = warp::get()
         .and(warp::path("static"))
         .and(warp::path::tail())
         .map(|tail: warp::path::Tail| {
             let path = tail.as_str();
-            if let Some(content) = Asset::get(path) {
-                let mime = mime_guess::from_path(path).first_or_octet_stream();
-                Response::builder()
-                    .header("content-type", mime.as_ref())
-                    .body(content.data.into_owned())
-            } else {
-                Response::builder()
+            match Asset::get(path) {
+                Some(content) => {
+                    let mime = mime_guess::from_path(path).first_or_octet_stream();
+                    Response::builder()
+                        .header("content-type", mime.as_ref())
+                        .body(content.data.into_owned())
+                }
+                None => Response::builder()
                     .status(StatusCode::NOT_FOUND)
-                    .body("Not Found".into())
+                    .body("Not Found".into()),
             }
         });
 
-    // 13) Merge API and UI, then run
-    let routes = api.or(index_html).or(static_files).boxed();
+    //
+    // SPA fallback: serve index.html for all other GETs
+    //
+    let spa_fallback = warp::get()
+        .and(warp::path::full())
+        .map(|_: warp::path::FullPath| {
+            let file = Asset::get("index.html").expect("index.html missing from embedded assets");
+            Response::builder()
+                .header("content-type", "text/html; charset=utf-8")
+                .body(file.data.into_owned())
+        });
+
+    //
+    // Merge everything: API, static, SPA
+    //
+    let routes = api.or(static_files).or(spa_fallback).boxed();
 
     println!("pulson server running on http://{}:{}", host, port);
     let ip: IpAddr = host.parse()?;
@@ -341,8 +338,7 @@ pub async fn run(
     Ok(())
 }
 
-/// A Warp filter that checks for `Authorization: Bearer <token>`
-/// and resolves it to a username, or rejects with `Unauthorized`.
+/// Auth filter extracting the username from a Bearer token
 fn authenticated_user(
     db: Arc<sled::Db>,
 ) -> impl Filter<Extract = (String,), Error = Rejection> + Clone {
