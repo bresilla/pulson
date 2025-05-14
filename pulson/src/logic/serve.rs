@@ -1,5 +1,8 @@
+// pulson/src/logic/serve.rs
+
 use chrono::{DateTime, Utc};
 use daemonize::Daemonize;
+use pulson_ui::ui_routes;
 use serde_json::json;
 use std::{net::IpAddr, path::PathBuf, sync::Arc};
 use uuid::Uuid;
@@ -8,20 +11,18 @@ use warp::{http::StatusCode, Filter, Rejection};
 
 use crate::logic::types::{DeviceInfo, TopicInfo};
 
-/// Used to reject unauthorized access
+/// Rejection type for auth failures
 #[derive(Debug)]
 struct Unauthorized;
 impl warp::reject::Reject for Unauthorized {}
 
-/// Payload for account/register and account/login
+/// Payloads
 #[derive(serde::Deserialize)]
 struct AccountPayload {
     username: String,
     password: String,
     rootpass: Option<String>,
 }
-
-/// Payload for ping
 #[derive(serde::Deserialize)]
 struct PingPayload {
     device_id: String,
@@ -34,8 +35,9 @@ pub async fn run(
     db_path: String,
     daemon: bool,
     root_pass: Option<String>,
+    _webui: bool, // still accepted, but unused at routing level
 ) -> anyhow::Result<()> {
-    // Daemonize if requested
+    // 1) Daemonize if requested
     if daemon {
         Daemonize::new()
             .pid_file("pulson.pid")
@@ -44,26 +46,24 @@ pub async fn run(
             .start()?;
     }
 
-    // Open the database (expanding ~)
+    // 2) Open Sled (expanding ~)
     let expanded = shellexpand::tilde(&db_path).into_owned();
     let db = Arc::new(sled::open(PathBuf::from(expanded))?);
 
     //
-    // 1) account/register
+    // 3) ACCOUNT /register
     //
     let reg_db = db.clone();
     let register = warp::post()
         .and(warp::path!("account" / "register"))
         .and(warp::body::json())
         .map(move |payload: AccountPayload| {
-            let user_key = format!("user:{}", payload.username);
-            if reg_db.contains_key(user_key.as_bytes()).unwrap_or(false) {
+            let key = format!("user:{}", payload.username);
+            if reg_db.contains_key(key.as_bytes()).unwrap_or(false) {
                 return StatusCode::CONFLICT;
             }
-            // store password
-            let _ = reg_db.insert(user_key.as_bytes(), payload.password.as_bytes());
+            let _ = reg_db.insert(key.as_bytes(), payload.password.as_bytes());
 
-            // determine role
             let role = if payload
                 .rootpass
                 .as_ref()
@@ -81,23 +81,22 @@ pub async fn run(
         });
 
     //
-    // 2) account/login
+    // 4) ACCOUNT /login
     //
     let login_db = db.clone();
     let login = warp::post()
         .and(warp::path!("account" / "login"))
         .and(warp::body::json())
         .map(move |payload: AccountPayload| {
-            let user_key = format!("user:{}", payload.username);
+            let key = format!("user:{}", payload.username);
             let err = || {
                 with_status(
                     warp_json(&json!({ "error": "invalid credentials" })),
                     StatusCode::UNAUTHORIZED,
                 )
             };
-
             match login_db
-                .get(user_key.as_bytes())
+                .get(key.as_bytes())
                 .ok()
                 .flatten()
                 .map(|v| v.to_vec())
@@ -113,19 +112,18 @@ pub async fn run(
         });
 
     //
-    // Auth filter yielding `username: String`
+    // 5) Authentication filter
     //
     let auth = authenticated_user(db.clone());
 
     //
-    // 3) account/delete/{username}
+    // 6) ACCOUNT /delete/<user>
     //
     let del_db = db.clone();
     let delete_user = warp::delete()
         .and(warp::path!("account" / String))
         .and(auth.clone())
         .map(move |target: String, caller: String| {
-            // only root can delete
             let role_key = format!("role:{}", caller);
             if let Ok(Some(role)) = del_db.get(role_key.as_bytes()) {
                 if role.as_ref() == b"root" {
@@ -138,7 +136,7 @@ pub async fn run(
         });
 
     //
-    // 4) account/users (list all, root only)
+    // 7) ACCOUNT /users  (list all users, root only)
     //
     let list_users = {
         let db = db.clone();
@@ -146,7 +144,6 @@ pub async fn run(
             .and(warp::path!("account" / "users"))
             .and(auth.clone())
             .map(move |caller: String| {
-                // only root can list
                 let role_key = format!("role:{}", caller);
                 let is_root = db
                     .get(role_key.as_bytes())
@@ -161,7 +158,6 @@ pub async fn run(
                     );
                 }
 
-                // collect all users and roles
                 let mut users = Vec::new();
                 for item in db.iter().flatten() {
                     let key = String::from_utf8_lossy(&item.0);
@@ -181,7 +177,7 @@ pub async fn run(
     };
 
     //
-    // 5) ping
+    // 8) POST /ping
     //
     let ping_db = db.clone();
     let ping = warp::post()
@@ -196,7 +192,7 @@ pub async fn run(
         });
 
     //
-    // 6) list all devices
+    // 9) GET /devices
     //
     let list_all = {
         let db = db.clone();
@@ -211,11 +207,11 @@ pub async fn run(
                         String::from_utf8(item.0.to_vec()),
                         String::from_utf8(item.1.to_vec()),
                     ) {
-                        if let Some((device, _)) = k.split_once('|') {
+                        if let Some((dev, _)) = k.split_once('|') {
                             if let Ok(dt) = DateTime::parse_from_rfc3339(&v) {
                                 let ts = dt.with_timezone(&Utc);
                                 latest
-                                    .entry(device.to_string())
+                                    .entry(dev.to_string())
                                     .and_modify(|old: &mut DateTime<Utc>| {
                                         if ts > *old {
                                             *old = ts;
@@ -238,7 +234,7 @@ pub async fn run(
     };
 
     //
-    // 7) list topics for one device
+    // 10) GET /devices/<device_id>
     //
     let list_one = {
         let db = db.clone();
@@ -270,9 +266,9 @@ pub async fn run(
     };
 
     //
-    // 8) Combine and run
+    // 11) Combine all API routes and handle Unauthorized
     //
-    let routes = register
+    let api = register
         .or(login)
         .or(delete_user)
         .or(list_users)
@@ -288,7 +284,13 @@ pub async fn run(
             } else {
                 Err(err)
             }
-        });
+        })
+        .boxed();
+
+    //
+    // 12) ALWAYS mount the WebUI static routes
+    //
+    let routes = api.or(ui_routes()).boxed();
 
     println!("pulson server running on http://{}:{}", host, port);
     let ip: IpAddr = host.parse()?;
@@ -297,7 +299,7 @@ pub async fn run(
     Ok(())
 }
 
-/// Filter that checks `Authorization: Bearer <token>` and returns the associated username.
+/// Filter that checks Authorization header and returns username
 fn authenticated_user(
     db: Arc<sled::Db>,
 ) -> impl Filter<Extract = (String,), Error = Rejection> + Clone {
@@ -310,12 +312,12 @@ fn authenticated_user(
                 .ok_or_else(|| warp::reject::custom(Unauthorized))?;
             let key = format!("token:{}", token);
             match db.get(key.as_bytes()).ok().flatten() {
-                Some(user_bytes) => {
-                    let user = String::from_utf8(user_bytes.to_vec())
+                Some(bytes) => {
+                    let user = String::from_utf8(bytes.to_vec())
                         .map_err(|_| warp::reject::custom(Unauthorized))?;
                     Ok(user)
                 }
-                _ => Err(warp::reject::custom(Unauthorized)),
+                None => Err(warp::reject::custom(Unauthorized)),
             }
         }
     })

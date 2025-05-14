@@ -29,21 +29,21 @@ pub enum Commands {
         /// Optional shared secret to create root users
         #[arg(long, alias = "rootpass")]
         root_pass: Option<String>,
+        /// Also serve the Web UI from `pulson-ui/ui/dist`
+        #[arg(long)]
+        webui: bool,
     },
 
     /// Query the running server for all tracked devices (or topics for one)
     List {
-        /// If provided, show topics just for this device
         #[arg(value_name = "DEVICE_ID")]
         device_id: Option<String>,
     },
 
-    /// Send a ping (POST /ping) for a given device_id and topic
+    /// Send a ping for a given device_id and topic
     Ping {
-        /// Device ID to ping
         #[arg(short = 'd', long)]
         device_id: String,
-        /// Topic for this ping (slash-separated)
         #[arg(short = 't', long)]
         topic: String,
     },
@@ -57,33 +57,25 @@ pub enum Commands {
 
 #[derive(Subcommand)]
 pub enum AccountAction {
-    /// Register a new username/password
     Register {
-        /// Username to register
         #[arg(short, long)]
         username: String,
-        /// Password for the new account
         #[arg(short, long)]
         password: String,
-        /// If you have the server’s root-pass, supply it here to become root
-        #[arg(long, alias = "rootpass")]
-        root_pass: Option<String>,
+        /// Supply `--root-pass` (or `--rootpass`) to become root
+        #[arg(long, alias = "root-pass")]
+        rootpass: Option<String>,
     },
-    /// Login with username/password (saves token locally)
     Login {
         #[arg(short, long)]
         username: String,
         #[arg(short, long)]
         password: String,
     },
-    /// Remove saved token
     Logout,
-    /// Delete another user (root only)
     Delete {
-        /// Username to delete
         #[arg(value_name = "USERNAME")]
         username: String,
     },
-    /// List all users (root only)
     List,
 }

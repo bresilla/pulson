@@ -9,14 +9,14 @@ use logic::account::read_token;
 async fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
 
-    // Allow PULSON_IP / PULSON_PORT to override flags
+    // Allow PULSON_IP / PULSON_PORT env vars to override flags
     let host = std::env::var("PULSON_IP").unwrap_or_else(|_| args.host.clone());
     let port = std::env::var("PULSON_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(args.port);
 
-    // Pre‐load token for protected commands (List, Ping, Account::Delete/List)
+    // Pre‐load token for protected commands
     let token = match &args.command {
         Commands::Serve { .. } => None,
         Commands::Account { .. } => None,
@@ -34,7 +34,8 @@ async fn main() -> anyhow::Result<()> {
             db_path,
             daemon,
             root_pass,
-        } => logic::serve::run(host.clone(), port, db_path, daemon, root_pass).await?,
+            webui,
+        } => logic::serve::run(host.clone(), port, db_path, daemon, root_pass, webui).await?,
 
         Commands::List { device_id } => {
             logic::list::run(host.clone(), port, device_id, token.clone().unwrap()).await?
@@ -48,10 +49,8 @@ async fn main() -> anyhow::Result<()> {
             AccountAction::Register {
                 username,
                 password,
-                root_pass,
-            } => {
-                logic::account::register(host.clone(), port, username, password, root_pass).await?
-            }
+                rootpass,
+            } => logic::account::register(host.clone(), port, username, password, rootpass).await?,
             AccountAction::Login { username, password } => {
                 logic::account::login(host.clone(), port, username, password).await?
             }
