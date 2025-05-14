@@ -5,6 +5,11 @@
 └── pulson/
     ├── src/
     │   ├── logic/
+    │   │   ├── client/
+    │   │   │   ├── account.rs
+    │   │   │   ├── list.rs
+    │   │   │   ├── mod.rs
+    │   │   │   └── ping.rs
     │   │   ├── serve/
     │   │   │   ├── api/
     │   │   │   │   ├── account_routes.rs
@@ -13,10 +18,7 @@
     │   │   │   ├── auth.rs
     │   │   │   ├── mod.rs
     │   │   │   └── ui.rs
-    │   │   ├── account.rs
-    │   │   ├── list.rs
     │   │   ├── mod.rs
-    │   │   ├── ping.rs
     │   │   └── types.rs
     │   ├── cli.rs
     │   └── main.rs
@@ -25,6 +27,276 @@
 ```
 
 # Project Files
+
+## File: `pulson/src/logic/client/account.rs`
+
+```rust
+use directories::ProjectDirs;
+use reqwest::Client;
+use serde::Serialize;
+use serde_json::Value;
+use std::{fs, io};
+
+#[derive(Serialize)]
+struct AccountPayload<'a> {
+    username: &'a str,
+    password: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rootpass: Option<&'a str>,
+}
+
+fn token_file() -> io::Result<std::path::PathBuf> {
+    let pd = ProjectDirs::from("com", "example", "pulson")
+        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no config dir"))?;
+    let dir = pd.config_dir();
+    fs::create_dir_all(dir)?;
+    Ok(dir.join("token"))
+}
+
+pub fn read_token() -> io::Result<String> {
+    let p = token_file()?;
+    fs::read_to_string(p).map(|s| s.trim().to_string())
+}
+
+pub async fn register(
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    rootpass: Option<String>,
+) -> anyhow::Result<()> {
+    let url = format!("http://{}:{}/account/register", host, port);
+    let payload = AccountPayload {
+        username: &username,
+        password: &password,
+        rootpass: rootpass.as_deref(),
+    };
+    let resp = Client::new().post(&url).json(&payload).send().await?;
+    if resp.status().is_success() {
+        println!("✓ Registered `{}`", username);
+    } else {
+        eprintln!("✗ Registration failed: {}", resp.text().await?);
+    }
+    Ok(())
+}
+
+pub async fn login(
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+) -> anyhow::Result<()> {
+    let url = format!("http://{}:{}/account/login", host, port);
+    let payload = AccountPayload {
+        username: &username,
+        password: &password,
+        rootpass: None,
+    };
+    let resp = Client::new().post(&url).json(&payload).send().await?;
+
+    if resp.status().is_success() {
+        // specify Value so .json() knows what to parse
+        let json: Value = resp.json::<Value>().await?;
+        let tok = json["token"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("no token in response"))?
+            .to_string();
+        fs::write(token_file()?, &tok)?;
+        println!("✓ Logged in");
+    } else {
+        eprintln!("✗ Login failed: {}", resp.text().await?);
+    }
+    Ok(())
+}
+
+pub fn logout() -> anyhow::Result<()> {
+    let p = token_file()?;
+    if p.exists() {
+        fs::remove_file(p)?;
+        println!("✓ Logged out");
+    } else {
+        println!("⚠ No token to remove");
+    }
+    Ok(())
+}
+
+pub async fn delete(host: String, port: u16, target: String) -> anyhow::Result<()> {
+    let token = match read_token() {
+        Ok(t) => t,
+        Err(_) => {
+            eprintln!("✗ Not logged in");
+            return Ok(());
+        }
+    };
+    let url = format!("http://{}:{}/account/{}", host, port, target);
+    let resp = Client::new().delete(&url).bearer_auth(token).send().await?;
+    if resp.status().is_success() {
+        println!("✓ Deleted user `{}`", target);
+    } else {
+        eprintln!("✗ Delete failed: {}", resp.status());
+    }
+    Ok(())
+}
+
+/// List all users (must be root)
+pub async fn list_users(host: String, port: u16) -> anyhow::Result<()> {
+    // load token
+    let token = match read_token() {
+        Ok(t) => t,
+        Err(_) => {
+            eprintln!("✗ Not logged in");
+            return Ok(());
+        }
+    };
+
+    let url = format!("http://{}:{}/account/users", host, port);
+    let resp = Client::new().get(&url).bearer_auth(token).send().await?;
+
+    if !resp.status().is_success() {
+        eprintln!("✗ Failed: HTTP {}", resp.status());
+        return Ok(());
+    }
+
+    // Expecting JSON array of { username, role }
+    let users: Vec<Value> = resp.json().await?;
+    println!("{:<20} ROLE", "USERNAME");
+    for u in users {
+        let name = u["username"].as_str().unwrap_or("<invalid>");
+        let role = u["role"].as_str().unwrap_or("<invalid>");
+        println!("{:<20} {}", name, role);
+    }
+    Ok(())
+}
+
+```
+
+## File: `pulson/src/logic/client/list.rs`
+
+```rust
+use crate::logic::types::{DeviceInfo, TopicInfo};
+use chrono::Utc;
+use reqwest::Client;
+
+/// Format age as s/m/h/d
+fn format_age(secs: i64) -> String {
+    if secs < 60 {
+        format!("{}s", secs)
+    } else if secs < 3600 {
+        format!("{}m", secs / 60)
+    } else if secs < 86_400 {
+        format!("{}h", secs / 3600)
+    } else {
+        format!("{}d", secs / 86_400)
+    }
+}
+
+pub async fn run(
+    host: String,
+    port: u16,
+    device_id: Option<String>,
+    token: String,
+) -> anyhow::Result<()> {
+    let now = Utc::now();
+    let client = Client::new();
+
+    if let Some(dev) = device_id {
+        let url = format!("http://{}:{}/devices/{}", host, port, dev);
+        let resp = client.get(&url).bearer_auth(&token).send().await?;
+
+        if !resp.status().is_success() {
+            eprintln!("Error: {}", resp.text().await?);
+            return Ok(());
+        }
+
+        let topics: Vec<TopicInfo> = resp.json().await?;
+        println!("{:<30} {:<25} {:<10}", "TOPIC", "LAST SEEN (UTC)", "AGE");
+        for t in topics {
+            let secs = now.signed_duration_since(t.last_seen).num_seconds();
+            println!(
+                "{:<30} {:<25} {:<10}",
+                t.topic,
+                t.last_seen,
+                format_age(secs)
+            );
+        }
+    } else {
+        let url = format!("http://{}:{}/devices", host, port);
+        let resp = client.get(&url).bearer_auth(&token).send().await?;
+
+        if !resp.status().is_success() {
+            eprintln!("Error: {}", resp.text().await?);
+            return Ok(());
+        }
+
+        let devices: Vec<DeviceInfo> = resp.json().await?;
+        println!(
+            "{:<20} {:<25} {:<10}",
+            "DEVICE ID", "LAST SEEN (UTC)", "AGE"
+        );
+        for d in devices {
+            let secs = now.signed_duration_since(d.last_seen).num_seconds();
+            println!(
+                "{:<20} {:<25} {:<10}",
+                d.device_id,
+                d.last_seen,
+                format_age(secs)
+            );
+        }
+    }
+
+    Ok(())
+}
+
+```
+
+## File: `pulson/src/logic/client/mod.rs`
+
+```rust
+pub mod account;
+pub mod list;
+pub mod ping;
+
+```
+
+## File: `pulson/src/logic/client/ping.rs`
+
+```rust
+use reqwest::Client;
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct PingPayload {
+    device_id: String,
+    topic: String,
+}
+
+pub async fn run(
+    host: String,
+    port: u16,
+    device_id: String,
+    topic: String,
+    token: String,
+) -> anyhow::Result<()> {
+    let client = Client::new();
+    let url = format!("http://{}:{}/ping", host, port);
+
+    let resp = client
+        .post(&url)
+        .bearer_auth(&token)
+        .json(&PingPayload { device_id, topic })
+        .send()
+        .await?;
+
+    if resp.status().is_success() {
+        println!("✓ Pinged {}", url);
+    } else {
+        eprintln!("✗ Ping failed: HTTP {}", resp.status());
+    }
+
+    Ok(())
+}
+
+```
 
 ## File: `pulson/src/logic/serve/api/account_routes.rs`
 
@@ -454,275 +726,12 @@ pub fn ui_routes() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejecti
 
 ```
 
-## File: `pulson/src/logic/account.rs`
-
-```rust
-use directories::ProjectDirs;
-use reqwest::Client;
-use serde::Serialize;
-use serde_json::Value;
-use std::{fs, io};
-
-#[derive(Serialize)]
-struct AccountPayload<'a> {
-    username: &'a str,
-    password: &'a str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    rootpass: Option<&'a str>,
-}
-
-fn token_file() -> io::Result<std::path::PathBuf> {
-    let pd = ProjectDirs::from("com", "example", "pulson")
-        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no config dir"))?;
-    let dir = pd.config_dir();
-    fs::create_dir_all(dir)?;
-    Ok(dir.join("token"))
-}
-
-pub fn read_token() -> io::Result<String> {
-    let p = token_file()?;
-    fs::read_to_string(p).map(|s| s.trim().to_string())
-}
-
-pub async fn register(
-    host: String,
-    port: u16,
-    username: String,
-    password: String,
-    rootpass: Option<String>,
-) -> anyhow::Result<()> {
-    let url = format!("http://{}:{}/account/register", host, port);
-    let payload = AccountPayload {
-        username: &username,
-        password: &password,
-        rootpass: rootpass.as_deref(),
-    };
-    let resp = Client::new().post(&url).json(&payload).send().await?;
-    if resp.status().is_success() {
-        println!("✓ Registered `{}`", username);
-    } else {
-        eprintln!("✗ Registration failed: {}", resp.text().await?);
-    }
-    Ok(())
-}
-
-pub async fn login(
-    host: String,
-    port: u16,
-    username: String,
-    password: String,
-) -> anyhow::Result<()> {
-    let url = format!("http://{}:{}/account/login", host, port);
-    let payload = AccountPayload {
-        username: &username,
-        password: &password,
-        rootpass: None,
-    };
-    let resp = Client::new().post(&url).json(&payload).send().await?;
-
-    if resp.status().is_success() {
-        // specify Value so .json() knows what to parse
-        let json: Value = resp.json::<Value>().await?;
-        let tok = json["token"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("no token in response"))?
-            .to_string();
-        fs::write(token_file()?, &tok)?;
-        println!("✓ Logged in");
-    } else {
-        eprintln!("✗ Login failed: {}", resp.text().await?);
-    }
-    Ok(())
-}
-
-pub fn logout() -> anyhow::Result<()> {
-    let p = token_file()?;
-    if p.exists() {
-        fs::remove_file(p)?;
-        println!("✓ Logged out");
-    } else {
-        println!("⚠ No token to remove");
-    }
-    Ok(())
-}
-
-pub async fn delete(host: String, port: u16, target: String) -> anyhow::Result<()> {
-    let token = match read_token() {
-        Ok(t) => t,
-        Err(_) => {
-            eprintln!("✗ Not logged in");
-            return Ok(());
-        }
-    };
-    let url = format!("http://{}:{}/account/{}", host, port, target);
-    let resp = Client::new().delete(&url).bearer_auth(token).send().await?;
-    if resp.status().is_success() {
-        println!("✓ Deleted user `{}`", target);
-    } else {
-        eprintln!("✗ Delete failed: {}", resp.status());
-    }
-    Ok(())
-}
-
-/// List all users (must be root)
-pub async fn list_users(host: String, port: u16) -> anyhow::Result<()> {
-    // load token
-    let token = match read_token() {
-        Ok(t) => t,
-        Err(_) => {
-            eprintln!("✗ Not logged in");
-            return Ok(());
-        }
-    };
-
-    let url = format!("http://{}:{}/account/users", host, port);
-    let resp = Client::new().get(&url).bearer_auth(token).send().await?;
-
-    if !resp.status().is_success() {
-        eprintln!("✗ Failed: HTTP {}", resp.status());
-        return Ok(());
-    }
-
-    // Expecting JSON array of { username, role }
-    let users: Vec<Value> = resp.json().await?;
-    println!("{:<20} ROLE", "USERNAME");
-    for u in users {
-        let name = u["username"].as_str().unwrap_or("<invalid>");
-        let role = u["role"].as_str().unwrap_or("<invalid>");
-        println!("{:<20} {}", name, role);
-    }
-    Ok(())
-}
-
-```
-
-## File: `pulson/src/logic/list.rs`
-
-```rust
-use crate::logic::types::{DeviceInfo, TopicInfo};
-use chrono::Utc;
-use reqwest::Client;
-
-/// Format age as s/m/h/d
-fn format_age(secs: i64) -> String {
-    if secs < 60 {
-        format!("{}s", secs)
-    } else if secs < 3600 {
-        format!("{}m", secs / 60)
-    } else if secs < 86_400 {
-        format!("{}h", secs / 3600)
-    } else {
-        format!("{}d", secs / 86_400)
-    }
-}
-
-pub async fn run(
-    host: String,
-    port: u16,
-    device_id: Option<String>,
-    token: String,
-) -> anyhow::Result<()> {
-    let now = Utc::now();
-    let client = Client::new();
-
-    if let Some(dev) = device_id {
-        let url = format!("http://{}:{}/devices/{}", host, port, dev);
-        let resp = client.get(&url).bearer_auth(&token).send().await?;
-
-        if !resp.status().is_success() {
-            eprintln!("Error: {}", resp.text().await?);
-            return Ok(());
-        }
-
-        let topics: Vec<TopicInfo> = resp.json().await?;
-        println!("{:<30} {:<25} {:<10}", "TOPIC", "LAST SEEN (UTC)", "AGE");
-        for t in topics {
-            let secs = now.signed_duration_since(t.last_seen).num_seconds();
-            println!(
-                "{:<30} {:<25} {:<10}",
-                t.topic,
-                t.last_seen,
-                format_age(secs)
-            );
-        }
-    } else {
-        let url = format!("http://{}:{}/devices", host, port);
-        let resp = client.get(&url).bearer_auth(&token).send().await?;
-
-        if !resp.status().is_success() {
-            eprintln!("Error: {}", resp.text().await?);
-            return Ok(());
-        }
-
-        let devices: Vec<DeviceInfo> = resp.json().await?;
-        println!(
-            "{:<20} {:<25} {:<10}",
-            "DEVICE ID", "LAST SEEN (UTC)", "AGE"
-        );
-        for d in devices {
-            let secs = now.signed_duration_since(d.last_seen).num_seconds();
-            println!(
-                "{:<20} {:<25} {:<10}",
-                d.device_id,
-                d.last_seen,
-                format_age(secs)
-            );
-        }
-    }
-
-    Ok(())
-}
-
-```
-
 ## File: `pulson/src/logic/mod.rs`
 
 ```rust
-pub mod account;
-pub mod list;
-pub mod ping;
+pub mod client;
 pub mod serve;
 pub mod types;
-
-```
-
-## File: `pulson/src/logic/ping.rs`
-
-```rust
-use reqwest::Client;
-use serde::Serialize;
-
-#[derive(Serialize)]
-struct PingPayload {
-    device_id: String,
-    topic: String,
-}
-
-pub async fn run(
-    host: String,
-    port: u16,
-    device_id: String,
-    topic: String,
-    token: String,
-) -> anyhow::Result<()> {
-    let client = Client::new();
-    let url = format!("http://{}:{}/ping", host, port);
-
-    let resp = client
-        .post(&url)
-        .bearer_auth(&token)
-        .json(&PingPayload { device_id, topic })
-        .send()
-        .await?;
-
-    if resp.status().is_success() {
-        println!("✓ Pinged {}", url);
-    } else {
-        eprintln!("✗ Ping failed: HTTP {}", resp.status());
-    }
-
-    Ok(())
-}
 
 ```
 
@@ -752,6 +761,7 @@ pub struct TopicInfo {
 
 ```rust
 use clap::{Parser, Subcommand};
+use client::{account, list, ping};
 
 /// realtime system/robot monitoring and tracing
 #[derive(Parser)]
