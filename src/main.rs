@@ -44,9 +44,10 @@ async fn main() -> anyhow::Result<()> {
             AccountAction::Register {
                 username,
                 password,
-                rootpass,
+                root_pass,
             } => {
-                logic::account::register(args.host, args.port, username, password, rootpass).await?
+                logic::account::register(args.host, args.port, username, password, root_pass)
+                    .await?
             }
             AccountAction::Login { username, password } => {
                 logic::account::login(args.host, args.port, username, password).await?
@@ -55,6 +56,7 @@ async fn main() -> anyhow::Result<()> {
             AccountAction::Delete { username } => {
                 logic::account::delete(args.host, args.port, username).await?
             }
+            AccountAction::List => logic::account::list_users(args.host, args.port).await?,
         },
     }
 

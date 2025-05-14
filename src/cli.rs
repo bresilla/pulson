@@ -67,7 +67,7 @@ pub enum AccountAction {
         password: String,
         /// If you have the server’s root_pass, supply it here to become root
         #[arg(long)]
-        rootpass: Option<String>,
+        root_pass: Option<String>,
     },
     /// Login with username/password (saves token locally)
     Login {
@@ -84,4 +84,6 @@ pub enum AccountAction {
         #[arg(value_name = "USERNAME")]
         username: String,
     },
+    /// List all users (root only)
+    List,
 }

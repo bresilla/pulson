@@ -104,3 +104,33 @@ pub async fn delete(host: String, port: u16, target: String) -> anyhow::Result<(
     }
     Ok(())
 }
+
+/// List all users (must be root)
+pub async fn list_users(host: String, port: u16) -> anyhow::Result<()> {
+    // load token
+    let token = match read_token() {
+        Ok(t) => t,
+        Err(_) => {
+            eprintln!("✗ Not logged in");
+            return Ok(());
+        }
+    };
+
+    let url = format!("http://{}:{}/account/users", host, port);
+    let resp = Client::new().get(&url).bearer_auth(token).send().await?;
+
+    if !resp.status().is_success() {
+        eprintln!("✗ Failed: HTTP {}", resp.status());
+        return Ok(());
+    }
+
+    // Expecting JSON array of { username, role }
+    let users: Vec<Value> = resp.json().await?;
+    println!("{:<20} ROLE", "USERNAME");
+    for u in users {
+        let name = u["username"].as_str().unwrap_or("<invalid>");
+        let role = u["role"].as_str().unwrap_or("<invalid>");
+        println!("{:<20} {}", name, role);
+    }
+    Ok(())
+}
