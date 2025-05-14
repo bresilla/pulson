@@ -114,21 +114,21 @@ pulson ping -d foo -t bar
 
 #### [Rustup](https://rustup.rs/)
 
-##### Install 
+Install 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
-#### Setup
+Setup
 ```bash
 rustup default stable
 ```
 
 #### [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
-##### Install
+Install
 ```
 curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 ```
-##### Setup
+Setup
 ```bash
 wasm-pack version
 wasm-pack --version
