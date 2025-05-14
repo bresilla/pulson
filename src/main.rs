@@ -9,7 +9,14 @@ use logic::account::read_token;
 async fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
 
-    // Pre‐load token for protected commands (List, Ping)
+    // Allow PULSON_IP / PULSON_PORT to override flags
+    let host = std::env::var("PULSON_IP").unwrap_or_else(|_| args.host.clone());
+    let port = std::env::var("PULSON_PORT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(args.port);
+
+    // Pre‐load token for protected commands (List, Ping, Account::Delete/List)
     let token = match &args.command {
         Commands::Serve { .. } => None,
         Commands::Account { .. } => None,
@@ -27,17 +34,14 @@ async fn main() -> anyhow::Result<()> {
             db_path,
             daemon,
             root_pass,
-        } => {
-            // Pass root_pass into serve::run
-            logic::serve::run(args.host, args.port, db_path, daemon, root_pass).await?
-        }
+        } => logic::serve::run(host.clone(), port, db_path, daemon, root_pass).await?,
 
         Commands::List { device_id } => {
-            logic::list::run(args.host, args.port, device_id, token.unwrap()).await?
+            logic::list::run(host.clone(), port, device_id, token.clone().unwrap()).await?
         }
 
         Commands::Ping { device_id, topic } => {
-            logic::ping::run(args.host, args.port, device_id, topic, token.unwrap()).await?
+            logic::ping::run(host.clone(), port, device_id, topic, token.clone().unwrap()).await?
         }
 
         Commands::Account { action } => match action {
@@ -46,17 +50,16 @@ async fn main() -> anyhow::Result<()> {
                 password,
                 root_pass,
             } => {
-                logic::account::register(args.host, args.port, username, password, root_pass)
-                    .await?
+                logic::account::register(host.clone(), port, username, password, root_pass).await?
             }
             AccountAction::Login { username, password } => {
-                logic::account::login(args.host, args.port, username, password).await?
+                logic::account::login(host.clone(), port, username, password).await?
             }
             AccountAction::Logout => logic::account::logout()?,
             AccountAction::Delete { username } => {
-                logic::account::delete(args.host, args.port, username).await?
+                logic::account::delete(host.clone(), port, username).await?
             }
-            AccountAction::List => logic::account::list_users(args.host, args.port).await?,
+            AccountAction::List => logic::account::list_users(host.clone(), port).await?,
         },
     }
 

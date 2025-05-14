@@ -27,7 +27,7 @@ pub enum Commands {
         #[arg(long)]
         daemon: bool,
         /// Optional shared secret to create root users
-        #[arg(long)]
+        #[arg(long, alias = "rootpass")]
         root_pass: Option<String>,
     },
 
@@ -48,7 +48,7 @@ pub enum Commands {
         topic: String,
     },
 
-    /// User account management (register, login, logout, delete)
+    /// User account management (register, login, logout, delete, list)
     Account {
         #[command(subcommand)]
         action: AccountAction,
@@ -65,8 +65,8 @@ pub enum AccountAction {
         /// Password for the new account
         #[arg(short, long)]
         password: String,
-        /// If you have the server’s root_pass, supply it here to become root
-        #[arg(long)]
+        /// If you have the server’s root-pass, supply it here to become root
+        #[arg(long, alias = "rootpass")]
         root_pass: Option<String>,
     },
     /// Login with username/password (saves token locally)

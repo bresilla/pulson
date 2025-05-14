@@ -94,5 +94,16 @@ pulson --host 127.0.0.1 --port 3030 ping \
   --device-id mydevice --topic "my/topic/pulse"
 ```
 
+
+You can set environment variables PULSON_IP and PULSON_PORT to avoid typing --host/--port every time:
+
+```bash
+export PULSON_IP=127.0.0.1
+export PULSON_PORT=3030
+
+pulson list
+pulson ping -d foo -t bar
+```
+
 ---
 
