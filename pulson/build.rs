@@ -38,10 +38,5 @@ fn main() {
         panic!("wasm-pack build failed");
     }
 
-    // 4) Copy our custom index.html into the dist folder
-    eprintln!(
-        "📦 [build.rs] copying {:?} → {:?}",
-        static_index, dist_index
-    );
     fs::copy(static_index, dist_index).expect("failed to copy index.html");
 }
