@@ -6,3 +6,4 @@ devbox.lock
 .vscode
 .devbox
 .db
+target-wasm

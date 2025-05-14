@@ -1,36 +1,47 @@
-use std::fs;
-use std::process::Command;
+// pulson/build.rs
 
-/// This build script will:
-/// 1) Run `wasm-pack build` on `pulson-ui`
-/// 2) Copy the generated `index.html` into the embed folder
+use std::{env, fs, path::PathBuf, process::Command};
+
 fn main() {
-    // If UI sources change, rerun
     println!("cargo:rerun-if-changed=../pulson-ui/src");
     println!("cargo:rerun-if-changed=../pulson-ui/static/index.html");
 
-    // 1) Run wasm-pack
+    // 1) Get the crate root as a PathBuf
+    let pulson_manifest = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let pulson_root = PathBuf::from(&pulson_manifest);
+
+    // 2) Compute the UI directory (sibling of pulson/)
+    let parent_dir = pulson_root
+        .parent()
+        .expect("pulson has no parent directoryy");
+    let ui_dir = parent_dir.join("pulson-ui");
+    let dist_dir = ui_dir.join("ui").join("dist");
+    let static_index = ui_dir.join("static").join("index.html");
+    let dist_index = dist_dir.join("index.html");
+
+    // 3) Build the UI via wasm-pack
     let status = Command::new("wasm-pack")
+        .env("CARGO_TARGET_DIR", "../target/target-wasm")
         .args(&[
             "build",
-            "../pulson-ui", // path to the UI crate
+            "../pulson-ui",
             "--release",
             "--target",
-            "web", // produce .js/.wasm for the web
+            "web",
             "--out-dir",
-            "ui/dist", // relative to pulson-ui/
+            "ui/dist",
         ])
-        .current_dir("../pulson-ui")
+        .current_dir(&ui_dir)
         .status()
-        .expect("`wasm-pack` not found; install via `cargo install wasm-pack`");
+        .expect("failed to run wasm-pack");
     if !status.success() {
         panic!("wasm-pack build failed");
     }
 
-    // 2) Overwrite the generated index.html with our static one
-    // wasm-pack by default copies static assets from `static/`?
-    // If not, explicitly copy:
-    let from = "../pulson-ui/static/index.html";
-    let to = "../pulson-ui/ui/dist/index.html";
-    fs::copy(from, to).expect("Failed to copy index.html into ui/dist");
+    // 4) Copy our custom index.html into the dist folder
+    eprintln!(
+        "📦 [build.rs] copying {:?} → {:?}",
+        static_index, dist_index
+    );
+    fs::copy(static_index, dist_index).expect("failed to copy index.html");
 }
