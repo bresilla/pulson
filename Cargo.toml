@@ -17,6 +17,8 @@ chrono = { version = "0.4", features = ["serde"] }
 daemonize = "0.5"
 anyhow = "1.0"
 shellexpand = "2.1"
+directories = "4.0"
+uuid        = { version = "1", features = ["v4"] }
 
 # add HTTP client for list
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }

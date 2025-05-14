@@ -23,7 +23,6 @@ pub enum Commands {
         /// Path to database file (supports `~`)
         #[arg(short, long, default_value = "~/.local/share/pulson")]
         db_path: String,
-
         /// Run as daemon in background (Unix only)
         #[arg(long)]
         daemon: bool,
@@ -41,9 +40,38 @@ pub enum Commands {
         /// Device ID to ping
         #[arg(short = 'd', long)]
         device_id: String,
-
         /// Topic for this ping (slash-separated)
         #[arg(short = 't', long)]
         topic: String,
     },
+
+    /// User account management (register, login, logout)
+    Account {
+        #[command(subcommand)]
+        action: AccountAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum AccountAction {
+    /// Register a new username/password
+    Register {
+        /// Username to register
+        #[arg(short, long)]
+        username: String,
+        /// Password for the new account
+        #[arg(short, long)]
+        password: String,
+    },
+    /// Login and save authentication token
+    Login {
+        /// Username
+        #[arg(short, long)]
+        username: String,
+        /// Password
+        #[arg(short, long)]
+        password: String,
+    },
+    /// Logout and remove saved token
+    Logout,
 }

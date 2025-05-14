@@ -1,8 +1,18 @@
 use chrono::{DateTime, Utc};
+use daemonize::Daemonize;
+use serde_json::json;
 use std::{net::IpAddr, path::PathBuf, sync::Arc};
+use uuid::Uuid;
+use warp::reply::{json as warp_json, with_status};
 use warp::{http::StatusCode, Filter};
 
 use crate::logic::types::{DeviceInfo, TopicInfo};
+
+#[derive(serde::Deserialize)]
+struct AccountPayload {
+    username: String,
+    password: String,
+}
 
 #[derive(serde::Deserialize)]
 struct PingPayload {
@@ -11,18 +21,65 @@ struct PingPayload {
 }
 
 pub async fn run(host: String, port: u16, db_path: String, daemon: bool) -> anyhow::Result<()> {
+    // Daemonize if requested
     if daemon {
-        daemonize::Daemonize::new()
+        Daemonize::new()
             .pid_file("pulson.pid")
             .chown_pid_file(false)
             .working_directory(".")
             .start()?;
     }
 
-    let db_path = shellexpand::tilde(&db_path).into_owned();
-    let db = Arc::new(sled::open(PathBuf::from(db_path))?);
+    // Open sled database (expanding ~)
+    let expanded = shellexpand::tilde(&db_path).into_owned();
+    let db = Arc::new(sled::open(PathBuf::from(expanded))?);
 
-    // POST /ping → record (device,topic) → now
+    // POST /account/register → create user
+    let reg_db = db.clone();
+    let register = warp::post()
+        .and(warp::path("account"))
+        .and(warp::path("register"))
+        .and(warp::body::json())
+        .map(move |payload: AccountPayload| {
+            let key = format!("user:{}", payload.username);
+            if reg_db.contains_key(key.as_bytes()).unwrap_or(false) {
+                StatusCode::CONFLICT
+            } else {
+                let _ = reg_db.insert(key.as_bytes(), payload.password.as_bytes());
+                StatusCode::CREATED
+            }
+        });
+
+    // POST /account/login → validate credentials & issue token
+    let login_db = db.clone();
+    let login = warp::post()
+        .and(warp::path("account"))
+        .and(warp::path("login"))
+        .and(warp::body::json())
+        .map(move |payload: AccountPayload| {
+            let key = format!("user:{}", payload.username);
+            // both branches must return WithStatus<Json<Value>>
+            let json_err = || {
+                with_status(
+                    warp_json(&json!({ "error": "invalid credentials" })),
+                    StatusCode::UNAUTHORIZED,
+                )
+            };
+
+            match login_db.get(key.as_bytes()).ok().flatten() {
+                Some(stored) if stored == payload.password.as_bytes() => {
+                    let token = Uuid::new_v4().to_string();
+                    let _ = login_db.insert(
+                        format!("token:{}", token).as_bytes(),
+                        payload.username.as_bytes(),
+                    );
+                    with_status(warp_json(&json!({ "token": token })), StatusCode::OK)
+                }
+                _ => json_err(),
+            }
+        });
+
+    // POST /ping → record a (device,topic) ping
     let ping_db = db.clone();
     let ping = warp::post()
         .and(warp::path("ping"))
@@ -34,7 +91,7 @@ pub async fn run(host: String, port: u16, db_path: String, daemon: bool) -> anyh
             StatusCode::OK
         });
 
-    // GET /devices → list all unique devices
+    // GET /devices → list all devices (latest timestamp per device)
     let list_all = {
         let db = db.clone();
         warp::get()
@@ -69,7 +126,7 @@ pub async fn run(host: String, port: u16, db_path: String, daemon: bool) -> anyh
                         last_seen,
                     })
                     .collect();
-                warp::reply::json(&devices)
+                warp_json(&devices)
             })
     };
 
@@ -98,11 +155,12 @@ pub async fn run(host: String, port: u16, db_path: String, daemon: bool) -> anyh
                         }
                     }
                 }
-                warp::reply::json(&topics)
+                warp_json(&topics)
             })
     };
 
-    let routes = ping.or(list_one).or(list_all);
+    // Combine all routes
+    let routes = register.or(login).or(ping).or(list_one).or(list_all);
 
     println!("pulson server running on http://{}:{}", host, port);
     let ip: IpAddr = host.parse()?;

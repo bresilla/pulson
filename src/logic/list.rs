@@ -1,7 +1,7 @@
 use crate::logic::types::{DeviceInfo, TopicInfo};
 use chrono::Utc;
 
-/// Turn a raw seconds‐count into “<n>s”, “<n>m”, “<n>h” or “<n>d”
+/// Format age as s/m/h/d
 fn format_age(secs: i64) -> String {
     if secs < 60 {
         format!("{}s", secs)
@@ -16,11 +16,12 @@ fn format_age(secs: i64) -> String {
 
 pub async fn run(host: String, port: u16, device_id: Option<String>) -> anyhow::Result<()> {
     let now = Utc::now();
+    let client = reqwest::Client::new();
 
     if let Some(dev) = device_id {
-        // per‐device view: topics + humanized age
+        // per-device view
         let url = format!("http://{}:{}/devices/{}", host, port, dev);
-        let topics: Vec<TopicInfo> = reqwest::get(&url).await?.json().await?;
+        let topics: Vec<TopicInfo> = client.get(&url).send().await?.json().await?;
 
         println!("{:<30} {:<25} {:<10}", "TOPIC", "LAST SEEN (UTC)", "AGE");
         for t in topics {
@@ -33,9 +34,9 @@ pub async fn run(host: String, port: u16, device_id: Option<String>) -> anyhow::
             );
         }
     } else {
-        // global view: devices + humanized age
+        // global view
         let url = format!("http://{}:{}/devices", host, port);
-        let devices: Vec<DeviceInfo> = reqwest::get(&url).await?.json().await?;
+        let devices: Vec<DeviceInfo> = client.get(&url).send().await?.json().await?;
 
         println!(
             "{:<20} {:<25} {:<10}",
