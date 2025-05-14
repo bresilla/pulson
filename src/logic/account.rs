@@ -1,3 +1,5 @@
+// src/logic/account.rs
+
 use directories::ProjectDirs;
 use reqwest::Client;
 use serde::Serialize;
@@ -9,6 +11,7 @@ struct AccountPayload {
     password: String,
 }
 
+/// Where we stash your auth token
 fn token_path() -> io::Result<std::path::PathBuf> {
     let pd = ProjectDirs::from("com", "example", "pulson")
         .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "cannot find config dir"))?;
@@ -17,6 +20,14 @@ fn token_path() -> io::Result<std::path::PathBuf> {
     Ok(dir.join("token"))
 }
 
+/// Read the token, or Err if missing
+pub fn read_token() -> io::Result<String> {
+    let path = token_path()?;
+    let s = fs::read_to_string(path)?;
+    Ok(s.trim().to_string())
+}
+
+/// Register a new user account
 pub async fn register(
     host: String,
     port: u16,
@@ -40,6 +51,7 @@ pub async fn register(
     Ok(())
 }
 
+/// Login, fetch a token, and save it locally
 pub async fn login(
     host: String,
     port: u16,
@@ -70,6 +82,7 @@ pub async fn login(
     Ok(())
 }
 
+/// Logout by removing the saved token
 pub fn logout() -> anyhow::Result<()> {
     let path = token_path()?;
     if path.exists() {

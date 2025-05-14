@@ -1,3 +1,4 @@
+use reqwest::Client;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -6,20 +7,27 @@ struct PingPayload {
     topic: String,
 }
 
-pub async fn run(host: String, port: u16, device_id: String, topic: String) -> anyhow::Result<()> {
-    let client = reqwest::Client::new();
+pub async fn run(
+    host: String,
+    port: u16,
+    device_id: String,
+    topic: String,
+    token: String,
+) -> anyhow::Result<()> {
+    let client = Client::new();
     let url = format!("http://{}:{}/ping", host, port);
 
     let resp = client
         .post(&url)
+        .bearer_auth(&token)
         .json(&PingPayload { device_id, topic })
         .send()
         .await?;
 
     if resp.status().is_success() {
-        println!("✓ Pinged {} successfully", url);
+        println!("✓ Pinged {}", url);
     } else {
-        eprintln!("✗ Ping to {} failed: HTTP {}", url, resp.status());
+        eprintln!("✗ Ping failed: HTTP {}", resp.status());
     }
 
     Ok(())

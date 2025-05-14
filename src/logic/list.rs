@@ -1,5 +1,6 @@
 use crate::logic::types::{DeviceInfo, TopicInfo};
 use chrono::Utc;
+use reqwest::Client;
 
 /// Format age as s/m/h/d
 fn format_age(secs: i64) -> String {
@@ -14,15 +15,25 @@ fn format_age(secs: i64) -> String {
     }
 }
 
-pub async fn run(host: String, port: u16, device_id: Option<String>) -> anyhow::Result<()> {
+pub async fn run(
+    host: String,
+    port: u16,
+    device_id: Option<String>,
+    token: String,
+) -> anyhow::Result<()> {
     let now = Utc::now();
-    let client = reqwest::Client::new();
+    let client = Client::new();
 
     if let Some(dev) = device_id {
-        // per-device view
         let url = format!("http://{}:{}/devices/{}", host, port, dev);
-        let topics: Vec<TopicInfo> = client.get(&url).send().await?.json().await?;
+        let resp = client.get(&url).bearer_auth(&token).send().await?;
 
+        if !resp.status().is_success() {
+            eprintln!("Error: {}", resp.text().await?);
+            return Ok(());
+        }
+
+        let topics: Vec<TopicInfo> = resp.json().await?;
         println!("{:<30} {:<25} {:<10}", "TOPIC", "LAST SEEN (UTC)", "AGE");
         for t in topics {
             let secs = now.signed_duration_since(t.last_seen).num_seconds();
@@ -34,10 +45,15 @@ pub async fn run(host: String, port: u16, device_id: Option<String>) -> anyhow::
             );
         }
     } else {
-        // global view
         let url = format!("http://{}:{}/devices", host, port);
-        let devices: Vec<DeviceInfo> = client.get(&url).send().await?.json().await?;
+        let resp = client.get(&url).bearer_auth(&token).send().await?;
 
+        if !resp.status().is_success() {
+            eprintln!("Error: {}", resp.text().await?);
+            return Ok(());
+        }
+
+        let devices: Vec<DeviceInfo> = resp.json().await?;
         println!(
             "{:<20} {:<25} {:<10}",
             "DEVICE ID", "LAST SEEN (UTC)", "AGE"
