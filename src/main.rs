@@ -9,22 +9,27 @@ use logic::account::read_token;
 async fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
 
-    // Pre‐load token for everything except `serve` and `account`
+    // Pre‐load token for protected commands (List, Ping)
     let token = match &args.command {
         Commands::Serve { .. } => None,
         Commands::Account { .. } => None,
         Commands::List { .. } | Commands::Ping { .. } => match read_token() {
             Ok(t) => Some(t),
             Err(_) => {
-                eprintln!("✗ No token found: please run `pulson account login` first");
+                eprintln!("✗ Not logged in: please run `pulson account login` first");
                 return Ok(());
             }
         },
     };
 
     match args.command {
-        Commands::Serve { db_path, daemon } => {
-            logic::serve::run(args.host, args.port, db_path, daemon).await?
+        Commands::Serve {
+            db_path,
+            daemon,
+            root_pass,
+        } => {
+            // Pass root_pass into serve::run
+            logic::serve::run(args.host, args.port, db_path, daemon, root_pass).await?
         }
 
         Commands::List { device_id } => {
@@ -36,13 +41,20 @@ async fn main() -> anyhow::Result<()> {
         }
 
         Commands::Account { action } => match action {
-            AccountAction::Register { username, password } => {
-                logic::account::register(args.host, args.port, username, password).await?
+            AccountAction::Register {
+                username,
+                password,
+                rootpass,
+            } => {
+                logic::account::register(args.host, args.port, username, password, rootpass).await?
             }
             AccountAction::Login { username, password } => {
                 logic::account::login(args.host, args.port, username, password).await?
             }
             AccountAction::Logout => logic::account::logout()?,
+            AccountAction::Delete { username } => {
+                logic::account::delete(args.host, args.port, username).await?
+            }
         },
     }
 
