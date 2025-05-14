@@ -1,17 +1,17 @@
 {
-  "packages": [
-    "rustc@latest",
-    "cargo@latest",
-    "rust-analyzer@latest"
-  ],
-  "shell": {
-    "init_hook": [
-      "echo 'Welcome to devbox!' > /dev/null"
+    "packages": [
+        "rustup@latest",
+        "libiconv@latest"
     ],
-    "scripts": {
-      "test": [
-        "echo \"Error: no test specified\" && exit 1"
-      ]
+    "shell": {
+        "init_hook": [
+            "projectDir=$(dirname $(readlink -f \"$0\"))",
+            "export LIBRARY_PATH=$LIBRARY_PATH:\"$projectDir/nix/profile/default/lib\"",
+        ],
+        "scripts": {
+            "test": "cargo test -- --show-output",
+            "start" : "cargo run",
+            "build-docs": "cargo doc"
+        }
     }
-  }
 }
