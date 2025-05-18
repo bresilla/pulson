@@ -7,3 +7,4 @@ devbox.lock
 .devbox
 .db
 target-wasm
+codegrab-output.md
