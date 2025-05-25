@@ -20,9 +20,10 @@ pub fn ping(
         .and(warp::path("ping"))
         .and(auth)
         .and(warp_body_json())
-        .map(move |_: String, payload: PingPayload| {
+        .map(move |username: String, payload: PingPayload| {
             let ts = Utc::now().to_rfc3339();
-            let key = format!("{}|{}", payload.device_id, payload.topic);
+            // CRITICAL FIX: Include username in key to isolate user data
+            let key = format!("{}:{}|{}", username, payload.device_id, payload.topic);
             let _ = db.insert(key.as_bytes(), ts.as_bytes());
             StatusCode::OK
         })
@@ -36,24 +37,31 @@ pub fn list_all(
         .and(warp::path("devices"))
         .and(warp::path::end())
         .and(auth)
-        .map(move |_: String| {
+        .map(move |username: String| {
             let mut latest = std::collections::HashMap::new();
+            let user_prefix = format!("{}:", username);
+            
             for item in db.iter().flatten() {
                 if let (Ok(k), Ok(v)) = (
                     String::from_utf8(item.0.to_vec()),
                     String::from_utf8(item.1.to_vec()),
                 ) {
-                    if let Some((dev, _)) = k.split_once('|') {
-                        if let Ok(dt) = DateTime::parse_from_rfc3339(&v) {
-                            let ts = dt.with_timezone(&Utc);
-                            latest
-                                .entry(dev.to_string())
-                                .and_modify(|old: &mut DateTime<Utc>| {
-                                    if ts > *old {
-                                        *old = ts;
-                                    }
-                                })
-                                .or_insert(ts);
+                    // CRITICAL FIX: Only process keys that belong to this user
+                    if k.starts_with(&user_prefix) {
+                        // Remove the "username:" prefix and then split on "|"
+                        let key_without_user = &k[user_prefix.len()..];
+                        if let Some((dev, _)) = key_without_user.split_once('|') {
+                            if let Ok(dt) = DateTime::parse_from_rfc3339(&v) {
+                                let ts = dt.with_timezone(&Utc);
+                                latest
+                                    .entry(dev.to_string())
+                                    .and_modify(|old: &mut DateTime<Utc>| {
+                                        if ts > *old {
+                                            *old = ts;
+                                        }
+                                    })
+                                    .or_insert(ts);
+                            }
                         }
                     }
                 }
@@ -77,21 +85,25 @@ pub fn list_one(
         .and(warp::path("devices"))
         .and(warp::path::param::<String>())
         .and(auth)
-        .map(move |device_id: String, _: String| {
+        .map(move |device_id: String, username: String| {
             let mut topics = Vec::new();
+            let user_prefix = format!("{}:", username);
+            let device_prefix = format!("{}{}|", user_prefix, device_id);
+            
             for item in db.iter().flatten() {
                 if let (Ok(k), Ok(v)) = (
                     String::from_utf8(item.0.to_vec()),
                     String::from_utf8(item.1.to_vec()),
                 ) {
-                    if let Some((dev, topic)) = k.split_once('|') {
-                        if dev == device_id {
-                            if let Ok(dt) = DateTime::parse_from_rfc3339(&v) {
-                                topics.push(TopicInfo {
-                                    topic: topic.to_string(),
-                                    last_seen: dt.with_timezone(&Utc),
-                                });
-                            }
+                    // CRITICAL FIX: Only process keys that belong to this user and device
+                    if k.starts_with(&device_prefix) {
+                        // Extract the topic part after "username:device|"
+                        let topic = &k[device_prefix.len()..];
+                        if let Ok(dt) = DateTime::parse_from_rfc3339(&v) {
+                            topics.push(TopicInfo {
+                                topic: topic.to_string(),
+                                last_seen: dt.with_timezone(&Utc),
+                            });
                         }
                     }
                 }
