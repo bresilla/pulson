@@ -1,8 +1,9 @@
 use gloo_net::http::Request;
 use gloo_storage::{LocalStorage, Storage};
+use gloo_timers::callback::Interval;
+use js_sys::Date;
 use serde::Deserialize;
 use wasm_bindgen_futures::spawn_local;
-use js_sys::Date;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -48,6 +49,7 @@ pub fn dashboard() -> Html {
                 let loading_initial = loading.clone();
                 let error_initial = error.clone();
 
+                // Initial fetch
                 spawn_local(async move {
                     loading_initial.set(true);
                     match fetch_devices().await {
@@ -62,50 +64,93 @@ pub fn dashboard() -> Html {
                     loading_initial.set(false);
                 });
 
-                // Set up auto-refresh if enabled
-                if auto_refresh_val {
-                    // Clone for the interval closure
+                // Set up auto-refresh interval if enabled
+                let interval_handle = if auto_refresh_val {
                     let interval_devices = devices.clone();
                     let interval_error = error.clone();
-                    let interval = gloo_timers::callback::Interval::new(5000, move || {
+                    
+                    let interval = Interval::new(5000, move || {
                         let devices_inner = interval_devices.clone();
                         let error_inner = interval_error.clone();
                         spawn_local(async move {
-                            if let Ok(device_list) = fetch_devices().await {
-                                devices_inner.set(device_list);
-                                error_inner.set(None);
+                            match fetch_devices().await {
+                                Ok(device_list) => {
+                                    devices_inner.set(device_list);
+                                    error_inner.set(None);
+                                }
+                                Err(e) => {
+                                    error_inner.set(Some(e));
+                                }
                             }
                         });
                     });
-                    interval.forget();
+                    Some(interval)
+                } else {
+                    None
+                };
+
+                // Cleanup function
+                move || {
+                    drop(interval_handle);
                 }
-                || ()
             },
             auto_refresh_val,
         );
     }
 
-    // Fetch topics when a device is selected
+    // Fetch topics when a device is selected or auto-refresh is enabled
     {
         let selected_device_id = selected_device.clone();
         let topics = topics.clone();
+        let auto_refresh_val = *auto_refresh;
 
         use_effect_with_deps(
-            move |device_id: &Option<String>| {
-                if let Some(device_id) = device_id {
+            move |deps: &(Option<String>, bool)| {
+                let (device_id, auto_refresh_enabled) = deps.clone();
+                
+                let interval_handle = if let Some(device_id) = &device_id {
                     let device_id = device_id.clone();
-                    let topics = topics.clone();
-                    spawn_local(async move {
-                        if let Ok(topic_list) = fetch_topics(&device_id).await {
-                            topics.set(topic_list);
-                        }
-                    });
+                    let topics_initial = topics.clone();
+                    
+                    // Initial fetch
+                    {
+                        let device_id_fetch = device_id.clone();
+                        spawn_local(async move {
+                            if let Ok(topic_list) = fetch_topics(&device_id_fetch).await {
+                                topics_initial.set(topic_list);
+                            }
+                        });
+                    }
+
+                    // Set up auto-refresh for topics if enabled
+                    if auto_refresh_enabled {
+                        let device_id_interval = device_id.clone();
+                        let topics_interval = topics.clone();
+                        
+                        let interval = Interval::new(5000, move || {
+                            let device_id_inner = device_id_interval.clone();
+                            let topics_inner = topics_interval.clone();
+                            spawn_local(async move {
+                                if let Ok(topic_list) = fetch_topics(&device_id_inner).await {
+                                    topics_inner.set(topic_list);
+                                }
+                            });
+                        });
+                        Some(interval)
+                    } else {
+                        None
+                    }
                 } else {
                     topics.set(Vec::new());
+                    None
+                };
+
+                // Cleanup function
+                move || {
+                    drop(interval_handle);
                 }
-                || ()
             },
-            (*selected_device_id).clone(),
+            ((*selected_device_id).clone(), auto_refresh_val),
         );
     }
 
@@ -159,20 +204,23 @@ pub fn dashboard() -> Html {
         <div class="dashboard">
             <nav class="navigation">
                 <div class="nav-brand">
-                    <h1>{"Pulson"}</h1>
-                    <span class="nav-subtitle">{"System Monitor"}</span>
+                    <img src="/static/logo.svg" alt="Pulson Logo" class="nav-logo" />
+                    <div>
+                        <h1>{"Pulson"}</h1>
+                        <span class="nav-subtitle">{"System Monitor"}</span>
+                    </div>
                 </div>
-                
+
                 <div class="nav-controls">
-                    <button 
+                    <button
                         class="nav-button refresh-button"
                         onclick={on_refresh}
                         title="Refresh data"
                     >
                         {"🔄"}
                     </button>
-                    
-                    <button 
+
+                    <button
                         class={classes!("nav-button", "auto-refresh-button", (*auto_refresh).then(|| "active"))}
                         onclick={toggle_auto_refresh}
                         title={if *auto_refresh { "Disable auto-refresh" } else { "Enable auto-refresh" }}
@@ -183,8 +231,8 @@ pub fn dashboard() -> Html {
                             {"▶️ Auto"}
                         }
                     </button>
-                    
-                    <button 
+
+                    <button
                         class="nav-button logout-button"
                         onclick={logout}
                         title="Logout"
@@ -193,7 +241,7 @@ pub fn dashboard() -> Html {
                     </button>
                 </div>
             </nav>
-            
+
             <main class="dashboard-content">
                 <div class="dashboard-grid">
                     <section class="devices-panel">
@@ -221,9 +269,9 @@ pub fn dashboard() -> Html {
                                     };
 
                                     let status_class = get_device_status_class(&device.last_seen);
-                                    
+
                                     html! {
-                                        <div 
+                                        <div
                                             class={classes!("device-item", is_selected.then(|| "selected"), status_class)}
                                             onclick={on_click}
                                         >
@@ -289,14 +337,6 @@ pub fn dashboard() -> Html {
                                 <p>{"Select a device to view its topics"}</p>
                             </div>
                         }
-                    </section>
-
-                    <section class="ping-panel">
-                        <h2>{"Send Ping"}</h2>
-                        <div class="ping-form">
-                            // Simple ping form inline for now
-                            <p>{"Ping functionality will be added here"}</p>
-                        </div>
                     </section>
 
                     <section class="stats-panel">
@@ -367,10 +407,11 @@ fn get_device_status_class(last_seen: &str) -> &'static str {
         let now = Date::now();
         let diff_ms = now - timestamp;
         let diff_seconds = diff_ms / 1000.0;
-        
+
         if diff_seconds < 30.0 {
             "online"
-        } else if diff_seconds < 300.0 { // 5 minutes
+        } else if diff_seconds < 300.0 {
+            // 5 minutes
             "warning"
         } else {
             "offline"
@@ -394,12 +435,14 @@ fn get_topic_status_class(last_seen: &str) -> &'static str {
         let now = Date::now();
         let diff_ms = now - timestamp;
         let diff_seconds = diff_ms / 1000.0;
-        
+
         if diff_seconds < 30.0 {
             "active"
-        } else if diff_seconds < 300.0 { // 5 minutes
+        } else if diff_seconds < 300.0 {
+            // 5 minutes
             "recent"
-        } else if diff_seconds < 3600.0 { // 1 hour
+        } else if diff_seconds < 3600.0 {
+            // 1 hour
             "stale"
         } else {
             "inactive"
@@ -424,7 +467,7 @@ fn format_relative_time(timestamp: &str) -> String {
         let now = Date::now();
         let diff_ms = now - ts;
         let diff_seconds = (diff_ms / 1000.0) as i64;
-        
+
         if diff_seconds < 1 {
             "just now".to_string()
         } else if diff_seconds < 60 {
@@ -444,7 +487,9 @@ fn format_relative_time(timestamp: &str) -> String {
 fn format_exact_time(timestamp: &str) -> String {
     if let Ok(ts) = parse_timestamp(timestamp) {
         let date = Date::new(&ts.into());
-        date.to_iso_string().as_string().unwrap_or_else(|| timestamp.to_string())
+        date.to_iso_string()
+            .as_string()
+            .unwrap_or_else(|| timestamp.to_string())
     } else {
         timestamp.to_string()
     }

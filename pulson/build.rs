@@ -5,6 +5,9 @@ use std::{env, fs, path::PathBuf, process::Command};
 fn main() {
     println!("cargo:rerun-if-changed=../pulson-ui/src");
     println!("cargo:rerun-if-changed=../pulson-ui/static/index.html");
+    println!("cargo:rerun-if-changed=../pulson-ui/static/style.css");
+    println!("cargo:rerun-if-changed=../pulson-ui/static/logo.svg");
+    println!("cargo:rerun-if-changed=../pulson-ui/static/logo.png");
 
     // 1) Get the crate root as a PathBuf
     let pulson_manifest = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
@@ -18,8 +21,12 @@ fn main() {
     let dist_dir = ui_dir.join("ui").join("dist");
     let static_index = ui_dir.join("static").join("index.html");
     let static_css = ui_dir.join("static").join("style.css");
+    let static_logo_svg = ui_dir.join("static").join("logo.svg");
+    let static_logo_png = ui_dir.join("static").join("logo.png");
     let dist_index = dist_dir.join("index.html");
     let dist_css = dist_dir.join("style.css");
+    let dist_logo_svg = dist_dir.join("logo.svg");
+    let dist_logo_png = dist_dir.join("logo.png");
 
     // 3) Build the UI via wasm-pack
     let status = Command::new("wasm-pack")
@@ -42,4 +49,6 @@ fn main() {
 
     fs::copy(static_index, dist_index).expect("failed to copy index.html");
     fs::copy(static_css, dist_css).expect("failed to copy style.css");
+    fs::copy(static_logo_svg, dist_logo_svg).expect("failed to copy logo.svg");
+    fs::copy(static_logo_png, dist_logo_png).expect("failed to copy logo.png");
 }
