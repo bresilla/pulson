@@ -2,7 +2,7 @@
 
 mod cli;
 mod logic;
-mod database;
+// mod database; // Temporarily disabled for CLI testing
 
 use clap::Parser;
 use cli::{AccountAction, Cli, Commands};
