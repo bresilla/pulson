@@ -5,7 +5,7 @@ pub mod devices;
 pub mod sessions;
 
 use anyhow::Result;
-use limbo::{Database as LimboDatabase, params};
+use limbo::{Database as LimboDatabase, params, Value};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -39,14 +39,14 @@ impl Database {
         Ok(())
     }
 
-    pub async fn execute(&self, sql: &str, params: impl limbo::params::Params) -> Result<()> {
+    pub async fn execute(&self, sql: &str, params: Vec<Value>) -> Result<()> {
         let db = self.db.write().await;
         let mut stmt = db.prepare(sql)?;
         stmt.execute(params)?;
         Ok(())
     }
 
-    pub async fn query_row<T, F>(&self, sql: &str, params: impl limbo::params::Params, f: F) -> Result<Option<T>>
+    pub async fn query_row<T, F>(&self, sql: &str, params: Vec<Value>, f: F) -> Result<Option<T>>
     where
         F: FnOnce(&limbo::Row) -> Result<T>,
     {
@@ -61,7 +61,7 @@ impl Database {
         }
     }
 
-    pub async fn query_rows<T, F>(&self, sql: &str, params: impl limbo::params::Params, f: F) -> Result<Vec<T>>
+    pub async fn query_rows<T, F>(&self, sql: &str, params: Vec<Value>, f: F) -> Result<Vec<T>>
     where
         F: Fn(&limbo::Row) -> Result<T>,
     {

@@ -2,6 +2,7 @@
 
 mod cli;
 mod logic;
+mod database;
 
 use clap::Parser;
 use cli::{AccountAction, Cli, Commands};
@@ -44,9 +45,28 @@ async fn main() -> anyhow::Result<()> {
             logic::serve::run(host, port, db_path, daemon, root_pass, webui).await?
         }
 
-        Commands::List { device_id } => {
+        Commands::List { 
+            device_id,
+            format,
+            sort,
+            status,
+            watch,
+            interval,
+            extended,
+        } => {
             // Client: list devices or topics
-            list::run(host, port, device_id, token.unwrap()).await?
+            list::run(
+                host, 
+                port, 
+                device_id, 
+                token.unwrap(),
+                format,
+                sort,
+                status,
+                watch,
+                interval,
+                extended,
+            ).await?
         }
 
         Commands::Ping { device_id, topic } => {

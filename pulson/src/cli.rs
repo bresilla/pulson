@@ -1,4 +1,31 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
+
+#[derive(Clone, ValueEnum)]
+pub enum OutputFormat {
+    Table,
+    Json,
+    Compact,
+}
+
+#[derive(Clone, ValueEnum)]
+pub enum SortBy {
+    LastSeen,
+    Name,
+    Status,
+    TopicCount,
+    PingCount,
+}
+
+#[derive(Clone, ValueEnum)]
+pub enum StatusFilter {
+    Online,
+    Warning,
+    Offline,
+    Active,
+    Recent,
+    Stale,
+    Inactive,
+}
 
 /// realtime system/robot monitoring and tracing
 #[derive(Parser)]
@@ -38,6 +65,24 @@ pub enum Commands {
     List {
         #[arg(value_name = "DEVICE_ID")]
         device_id: Option<String>,
+        /// Output format: table (default), json, or compact
+        #[arg(short, long, default_value = "table")]
+        format: OutputFormat,
+        /// Sort by: last-seen (default), name, status, topic-count, ping-count
+        #[arg(short, long, default_value = "last-seen")]
+        sort: SortBy,
+        /// Show only devices/topics with specific status
+        #[arg(long)]
+        status: Option<StatusFilter>,
+        /// Watch mode: continuously update the listing
+        #[arg(short, long)]
+        watch: bool,
+        /// Watch interval in seconds (default: 5)
+        #[arg(long, default_value_t = 5)]
+        interval: u64,
+        /// Show extended information (descriptions, counts, etc.)
+        #[arg(short = 'x', long)]
+        extended: bool,
     },
 
     /// Send a ping for a given device_id and topic
