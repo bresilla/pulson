@@ -1,4 +1,5 @@
 use crate::logic::serve::auth::authenticated_user;
+use bcrypt::{hash, verify, DEFAULT_COST};
 use serde::Deserialize;
 use serde_json::json;
 use sled::Db;
@@ -31,7 +32,14 @@ pub fn register(
             if db.contains_key(user_key.as_bytes()).unwrap_or(false) {
                 return StatusCode::CONFLICT;
             }
-            let _ = db.insert(user_key.as_bytes(), payload.password.as_bytes());
+
+            // Hash the password before storing
+            let hashed_password = match hash(&payload.password, DEFAULT_COST) {
+                Ok(h) => h,
+                Err(_) => return StatusCode::INTERNAL_SERVER_ERROR, // Or a more specific error
+            };
+
+            let _ = db.insert(user_key.as_bytes(), hashed_password.as_bytes());
 
             let role = if payload
                 .rootpass
@@ -69,11 +77,30 @@ pub fn login(db: Arc<Db>) -> impl Filter<Extract = impl warp::Reply, Error = Rej
                 .flatten()
                 .map(|v| v.to_vec())
             {
-                Some(stored) if stored == payload.password.as_bytes() => {
-                    let token = Uuid::new_v4().to_string();
-                    let tok_key = format!("token:{}", token);
-                    let _ = db.insert(tok_key.as_bytes(), payload.username.as_bytes());
-                    with_status(warp_json(&json!({ "token": token })), StatusCode::OK)
+                Some(stored_hashed_password_bytes) => {
+                    // Convert stored bytes to string to verify
+                    let stored_hashed_password = match String::from_utf8(stored_hashed_password_bytes) {
+                        Ok(s) => s,
+                        Err(_) => return err(), // Or a more specific error if password wasn't valid UTF-8
+                    };
+
+                    match verify(&payload.password, &stored_hashed_password) {
+                        Ok(true) => {
+                            let token = Uuid::new_v4().to_string();
+                            let tok_key = format!("token:{}", token);
+                            let _ = db.insert(tok_key.as_bytes(), payload.username.as_bytes());
+                            // Store role with token for easier lookup, or fetch role separately
+                            // For now, keeping it simple as original
+                            with_status(warp_json(&json!({ "token": token })), StatusCode::OK)
+                        }
+                        Ok(false) => err(),
+                        Err(_) => {
+                            // bcrypt verify can error out for various reasons e.g. invalid hash format
+                            // log this error server-side
+                            eprintln!("Error verifying password for user {}", payload.username);
+                            err()
+                        }
+                    }
                 }
                 _ => err(),
             }
