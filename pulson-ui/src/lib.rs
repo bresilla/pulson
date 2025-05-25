@@ -1,11 +1,14 @@
 // pulson-ui/src/lib.rs
 
+mod components;
+
+use components::Dashboard;
 use gloo_net::http::Request;
 use gloo_storage::{LocalStorage, Storage};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::spawn_local; // 1) import this
-use web_sys::{HtmlInputElement, SubmitEvent}; // 3) SubmitEvent
+use wasm_bindgen_futures::spawn_local;
+use web_sys::{HtmlInputElement, SubmitEvent};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -103,7 +106,7 @@ fn login() -> Html {
     };
 
     html! {
-        <form {onsubmit} style="max-width:300px; margin:50px auto;">
+        <form {onsubmit} class="login-form" style="max-width:300px; margin:50px auto;">
             <h2>{ "Pulson Login" }</h2>
             if let Some(err) = &*error {
                 <p style="color:red;">{ err }</p>
@@ -137,17 +140,9 @@ fn login() -> Html {
 }
 
 /// ----
-/// 3) Dashboard (stub)
+/// 3) Dashboard - now using the full component
 /// ----
-#[function_component(Dashboard)]
-fn dashboard() -> Html {
-    html! {
-        <div style="padding:20px;">
-            <h2>{ "Welcome to Pulson Dashboard" }</h2>
-            <p>{ "…dashboard UI goes here…" }</p>
-        </div>
-    }
-}
+// Dashboard component is now in components/dashboard.rs
 
 /// ----
 /// 4) App entry
