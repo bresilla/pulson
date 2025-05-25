@@ -16,6 +16,12 @@ use warp::{ // Shorten warp imports
 
 use crate::logic::serve::auth::authenticated_user;
 
+#[derive(serde::Serialize)] // Add Serialize for the response
+struct UserInfoResponse {
+    username: String,
+    is_root: bool,
+}
+
 #[derive(Deserialize)]
 struct AccountPayload {
     username: String,
@@ -181,5 +187,42 @@ pub fn logout(db: Arc<Db>) -> impl Filter<Extract = impl warp::Reply, Error = Re
             // No Bearer token found in header, though authenticated_user should have caught this.
             // This is a fallback.
             with_status(warp_json(&json!({ "error": "invalid token format" })), StatusCode::BAD_REQUEST)
+        })
+}
+
+/// GET /api/userinfo
+pub fn user_info(db: Arc<Db>) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+    let auth = authenticated_user(db.clone());
+    warp::get()
+        .and(warp::path!("api" / "userinfo")) // Corrected: Removed backslashes
+        .and(auth)
+        .map(move |username: String| {
+            let role_key = format!("role:{}", username); // Corrected: Removed backslashes
+            match db.get(role_key.as_bytes()) {
+                Ok(Some(role_bytes)) => {
+                    let role = String::from_utf8_lossy(&role_bytes).to_string();
+                    let is_root = role == "root"; // Corrected: Removed backslashes
+                    let user_info_response = UserInfoResponse {
+                        username,
+                        is_root,
+                    };
+                    with_status(warp_json(&user_info_response), StatusCode::OK)
+                }
+                Ok(None) => {
+                    // Role not found, which is unexpected for an authenticated user
+                    eprintln!("Role not found for authenticated user: {}", username);
+                    with_status(
+                        warp_json(&json!({ "error": "user role not found" })), // Corrected: Removed backslashes
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                }
+                Err(e) => {
+                    eprintln!("Database error fetching role for user {}: {}", username, e);
+                    with_status(
+                        warp_json(&json!({ "error": "database error" })), // Corrected: Removed backslashes
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                }
+            }
         })
 }

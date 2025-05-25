@@ -19,6 +19,12 @@ pub struct TopicInfo {
     pub last_seen: String,
 }
 
+#[derive(Clone, PartialEq, Deserialize, Debug)] // Added Debug for easier inspection
+pub struct UserData {
+    pub username: String,
+    pub is_root: bool,
+}
+
 #[function_component(Dashboard)]
 pub fn dashboard() -> Html {
     let devices = use_state(Vec::<DeviceInfo>::new);
@@ -28,6 +34,8 @@ pub fn dashboard() -> Html {
     let error = use_state(|| None::<String>);
     let auto_refresh = use_state(|| true);
     let navigator = use_navigator().unwrap();
+    let user_menu_visible = use_state(|| false);
+    let user_data = use_state(|| None::<UserData>); // New state for user data
 
     // Check if user is authenticated
     let token = LocalStorage::get::<String>("pulson_token").ok();
@@ -95,6 +103,34 @@ pub fn dashboard() -> Html {
                 }
             },
             auto_refresh_val,
+        );
+    }
+
+    // Fetch user data on component mount
+    {
+        let user_data = user_data.clone();
+        let token_clone = token.clone(); // Clone token for the async block
+
+        use_effect_with_deps(
+            move |_| {
+                if let Some(auth_token) = token_clone {
+                    let user_data_setter = user_data.clone();
+                    spawn_local(async move {
+                        match fetch_user_data(&auth_token).await {
+                            Ok(data) => {
+                                user_data_setter.set(Some(data));
+                            }
+                            Err(e) => {
+                                // Handle error fetching user data, e.g., log it or show a message
+                                gloo_console::error!("Failed to fetch user data:", e);
+                                user_data_setter.set(None); // Or set to a default/guest user
+                            }
+                        }
+                    });
+                }
+                || () // Cleanup function (no-op here)
+            },
+            (), // Empty dependency array, so it runs once on mount
         );
     }
 
@@ -200,26 +236,125 @@ pub fn dashboard() -> Html {
         })
     };
 
+    let toggle_user_menu = {
+        let user_menu_visible = user_menu_visible.clone();
+        Callback::from(move |_| {
+            user_menu_visible.set(!*user_menu_visible);
+        })
+    };
+
     html! {
-        <div class="dashboard">
-            <nav class="navigation">
-                <div class="nav-brand">
+        <div class="dashboard-container">
+            <aside class="sidebar">
+                <div class="sidebar-header">
                     <img src="/static/logo.svg" alt="Pulson Logo" class="nav-logo" />
-                    <div>
-                        <h1>{"Pulson"}</h1>
-                        <span class="nav-subtitle">{"System Monitor"}</span>
-                    </div>
+                    <h1>{"pulson"}</h1>
+                    <span class="nav-subtitle">{"System Monitor"}</span>
                 </div>
 
-                <div class="nav-controls">
+                <nav class="sidebar-nav">
+                    <h2>{"Devices"}</h2>
+                    if *loading {
+                        <div class="loading">{"Loading devices..."}</div>
+                    } else if let Some(err) = &*error {
+                        <div class="error">{format!("Error: {}", err)}</div>
+                    } else if devices.is_empty() {
+                        <div class="device-list-empty">
+                            <p>{"No devices found"}</p>
+                            <small>{"Devices will appear here once they start sending pings"}</small>
+                        </div>
+                    } else {
+                        <div class="device-list">
+                            {for {
+                                let mut sorted_devices = devices.iter().collect::<Vec<_>>();
+                                sorted_devices.sort_by(|a, b| {
+                                    let a_time = parse_timestamp(&a.last_seen).unwrap_or(0.0);
+                                    let b_time = parse_timestamp(&b.last_seen).unwrap_or(0.0);
+                                    b_time.partial_cmp(&a_time).unwrap_or(std::cmp::Ordering::Equal)
+                                });
+                                sorted_devices
+                            }.iter().map(|device| {
+                                let device_id = device.device_id.clone();
+                                let is_selected = selected_device.as_ref() == Some(&device.device_id);
+                                let on_click = {
+                                    let device_id = device_id.clone();
+                                    let on_select = on_device_select.clone();
+                                    Callback::from(move |_| {
+                                        on_select.emit(device_id.clone());
+                                    })
+                                };
+                                let status_class = get_device_status_class(&device.last_seen);
+                                html! {
+                                    <div
+                                        class={classes!("device-item", is_selected.then(|| "selected"), status_class)}
+                                        onclick={on_click}
+                                    >
+                                        <div class="device-header">
+                                            <span class="device-id">{&device.device_id}</span>
+                                            <span class={classes!("device-status", status_class)}>
+                                                {get_device_status(&device.last_seen)}
+                                            </span>
+                                        </div>
+                                        <div class="device-info">
+                                            <small class="last-seen">
+                                                {"Last seen: "}{format_relative_time(&device.last_seen)}
+                                            </small>
+                                        </div>
+                                    </div>
+                                }
+                            })}
+                        </div>
+                    }
+                </nav>
+
+                <div class="sidebar-footer">
+                    <div class="user-info-container">
+                        <div class="user-menu-toggle" onclick={toggle_user_menu.clone()}>
+                            // TODO: Replace "User" with actual dynamic username
+                            <span class="username">
+                                {
+                                    if let Some(ud) = &*user_data {
+                                        ud.username.clone()
+                                    } else {
+                                        "Loading...".to_string()
+                                    }
+                                }
+                            </span> 
+                            // TODO: Replace with actual root status logic
+                            <span class="user-role">
+                                {
+                                    if let Some(ud) = &*user_data {
+                                        if ud.is_root {
+                                            "(Root)".to_string()
+                                        } else {
+                                            "(User)".to_string()
+                                        }
+                                    } else {
+                                        "".to_string()
+                                    }
+                                }
+                            </span> 
+                            <span class="user-menu-arrow">{ if *user_menu_visible { "▲" } else { "▼" } }</span>
+                        </div>
+                        if *user_menu_visible {
+                            <div class="user-menu-popup">
+                                <button class="user-menu-popup-item" onclick={logout.clone()}>
+                                    {"Logout"}
+                                </button>
+                                <button class="user-menu-popup-item unimplemented">
+                                    {"Settings"}
+                                    <small>{" (coming soon)"}</small>
+                                </button>
+                            </div>
+                        }
+                    </div>
                     <button
                         class="nav-button refresh-button"
                         onclick={on_refresh}
                         title="Refresh data"
                     >
-                        {"🔄"}
+                        {"🔄 Refresh"}
                     </button>
-
                     <button
                         class={classes!("nav-button", "auto-refresh-button", (*auto_refresh).then(|| "active"))}
                         onclick={toggle_auto_refresh}
@@ -231,68 +366,42 @@ pub fn dashboard() -> Html {
                             {"▶️ Auto"}
                         }
                     </button>
-
-                    <button
-                        class="nav-button logout-button"
-                        onclick={logout}
-                        title="Logout"
-                    >
-                        {"Logout"}
-                    </button>
                 </div>
-            </nav>
+            </aside>
 
-            <main class="dashboard-content">
-                <div class="dashboard-grid">
-                    <section class="devices-panel">
-                        <h2>{"Devices"}</h2>
-                        if *loading {
-                            <div class="loading">{"Loading devices..."}</div>
-                        } else if let Some(err) = &*error {
-                            <div class="error">{format!("Error: {}", err)}</div>
-                        } else if devices.is_empty() {
-                            <div class="device-list-empty">
-                                <p>{"No devices found"}</p>
-                                <small>{"Devices will appear here once they start sending pings"}</small>
+            <main class="main-content"> // Changed from "dashboard-content"
+                <section class="topics-panel">
+                    <h2>
+                        if let Some(device_id) = &*selected_device {
+                            {format!("Topics for {}", device_id)}
+                        } else {
+                            {"Select a device to view topics"}
+                        }
+                    </h2>
+                    if selected_device.is_some() {
+                        if topics.is_empty() {
+                            <div class="topic-list-empty">
+                                <p>{"No topics found"}</p>
+                                <small>{"Topics will appear here once the device sends pings"}</small>
                             </div>
                         } else {
-                            <div class="device-list">
-                                {for {
-                                    let mut sorted_devices = devices.iter().collect::<Vec<_>>();
-                                    sorted_devices.sort_by(|a, b| {
-                                        // Parse timestamps and sort by last_seen descending (most recent first)
-                                        let a_time = parse_timestamp(&a.last_seen).unwrap_or(0.0);
-                                        let b_time = parse_timestamp(&b.last_seen).unwrap_or(0.0);
-                                        b_time.partial_cmp(&a_time).unwrap_or(std::cmp::Ordering::Equal)
-                                    });
-                                    sorted_devices
-                                }.iter().map(|device| {
-                                    let device_id = device.device_id.clone();
-                                    let is_selected = selected_device.as_ref() == Some(&device.device_id);
-                                    let on_click = {
-                                        let device_id = device_id.clone();
-                                        let on_select = on_device_select.clone();
-                                        Callback::from(move |_| {
-                                            on_select.emit(device_id.clone());
-                                        })
-                                    };
-
-                                    let status_class = get_device_status_class(&device.last_seen);
-
+                            <div class="topic-list">
+                                {for topics.iter().map(|topic| {
+                                    let status_class = get_topic_status_class(&topic.last_seen);
                                     html! {
-                                        <div
-                                            class={classes!("device-item", is_selected.then(|| "selected"), status_class)}
-                                            onclick={on_click}
-                                        >
-                                            <div class="device-header">
-                                                <span class="device-id">{&device.device_id}</span>
-                                                <span class={classes!("device-status", status_class)}>
-                                                    {get_device_status(&device.last_seen)}
+                                        <div class={classes!("topic-item", status_class)}>
+                                            <div class="topic-header">
+                                                <span class="topic-name">{&topic.topic}</span>
+                                                <span class={classes!("topic-status", status_class)}>
+                                                    {get_topic_status(&topic.last_seen)}
                                                 </span>
                                             </div>
-                                            <div class="device-info">
+                                            <div class="topic-info">
                                                 <small class="last-seen">
-                                                    {"Last seen: "}{format_relative_time(&device.last_seen)}
+                                                    {"Last ping: "}{format_relative_time(&topic.last_seen)}
+                                                </small>
+                                                <small class="exact-time">
+                                                    {format_exact_time(&topic.last_seen)}
                                                 </small>
                                             </div>
                                         </div>
@@ -300,74 +409,31 @@ pub fn dashboard() -> Html {
                                 })}
                             </div>
                         }
-                    </section>
-
-                    <section class="topics-panel">
-                        <h2>
-                            if let Some(device_id) = &*selected_device {
-                                {format!("Topics for {}", device_id)}
-                            } else {
-                                {"Select a device to view topics"}
-                            }
-                        </h2>
-                        if selected_device.is_some() {
-                            if topics.is_empty() {
-                                <div class="topic-list-empty">
-                                    <p>{"No topics found"}</p>
-                                    <small>{"Topics will appear here once the device sends pings"}</small>
-                                </div>
-                            } else {
-                                <div class="topic-list">
-                                    {for topics.iter().map(|topic| {
-                                        let status_class = get_topic_status_class(&topic.last_seen);
-                                        html! {
-                                            <div class={classes!("topic-item", status_class)}>
-                                                <div class="topic-header">
-                                                    <span class="topic-name">{&topic.topic}</span>
-                                                    <span class={classes!("topic-status", status_class)}>
-                                                        {get_topic_status(&topic.last_seen)}
-                                                    </span>
-                                                </div>
-                                                <div class="topic-info">
-                                                    <small class="last-seen">
-                                                        {"Last ping: "}{format_relative_time(&topic.last_seen)}
-                                                    </small>
-                                                    <small class="exact-time">
-                                                        {format_exact_time(&topic.last_seen)}
-                                                    </small>
-                                                </div>
-                                            </div>
-                                        }
-                                    })}
-                                </div>
-                            }
-                        } else {
-                            <div class="topic-list-placeholder">
-                                <p>{"Select a device to view its topics"}</p>
-                            </div>
-                        }
-                    </section>
-
-                    <section class="stats-panel">
-                        <h2>{"Statistics"}</h2>
-                        <div class="stats-grid">
-                            <div class="stat-card">
-                                <h3>{"Total Devices"}</h3>
-                                <span class="stat-value">{devices.len()}</span>
-                            </div>
-                            <div class="stat-card">
-                                <h3>{"Active Topics"}</h3>
-                                <span class="stat-value">{topics.len()}</span>
-                            </div>
-                            <div class="stat-card">
-                                <h3>{"Auto Refresh"}</h3>
-                                <span class="stat-value">{if *auto_refresh { "ON" } else { "OFF" }}</span>
-                            </div>
+                    } else {
+                        <div class="topic-list-placeholder">
+                            <p>{"Select a device to view its topics"}</p>
                         </div>
-                    </section>
-                </div>
+                    }
+                </section>
             </main>
         </div>
+    }
+}
+
+async fn fetch_user_data(token: &str) -> Result<UserData, String> {
+    let request = Request::get("/api/userinfo") // Ensure this endpoint exists on your backend
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| format!("Network error fetching user data: {}", e))?;
+
+    if request.status() == 200 {
+        request
+            .json::<UserData>()
+            .await
+            .map_err(|e| format!("Failed to parse user data response: {}", e))
+    } else {
+        Err(format!("Server error fetching user data: {} - {}", request.status(), request.status_text()))
     }
 }
 
