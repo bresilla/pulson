@@ -76,14 +76,37 @@ pub async fn login(
     Ok(())
 }
 
-pub fn logout() -> anyhow::Result<()> {
-    let p = token_file()?;
-    if p.exists() {
-        fs::remove_file(p)?;
-        println!("✓ Logged out");
+pub async fn logout(host: String, port: u16) -> anyhow::Result<()> {
+    let token = match read_token() {
+        Ok(t) => t,
+        Err(_) => {
+            println!("⚠ Not logged in, no local token to clear.");
+            return Ok(());
+        }
+    };
+
+    let url = format!("http://{}:{}/account/logout", host, port);
+    let client = Client::new();
+    let resp = client
+        .post(&url)
+        .bearer_auth(&token)
+        .send()
+        .await?;
+
+    if resp.status().is_success() {
+        match fs::remove_file(token_file()?) {
+            Ok(_) => println!("✓ Logged out successfully and local token cleared."),
+            Err(e) => {
+                eprintln!("✓ Logged out from server, but failed to remove local token: {}. Please remove it manually.", e);
+            }
+        }
     } else {
-        println!("⚠ No token to remove");
+        let status = resp.status();
+        let error_text = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        eprintln!("✗ Logout failed on server (status: {}): {}", status, error_text);
+        eprintln!("ℹ Your local token was not cleared. You might still be logged in on the server or the token might be invalid.");
     }
+
     Ok(())
 }
 

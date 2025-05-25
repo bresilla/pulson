@@ -2,7 +2,6 @@
 
 mod cli;
 mod logic;
-// mod database; // Temporarily disabled for CLI testing
 
 use clap::Parser;
 use cli::{AccountAction, Cli, Commands};
@@ -85,7 +84,7 @@ async fn main() -> anyhow::Result<()> {
                 AccountAction::Login { username, password } => {
                     account::login(host, port, username, password).await?
                 }
-                AccountAction::Logout => account::logout()?,
+                AccountAction::Logout => account::logout(host, port).await?, // Modified this line
                 AccountAction::Delete { username } => account::delete(host, port, username).await?,
                 AccountAction::List => account::list_users(host, port).await?,
             }

@@ -1,22 +1,32 @@
-use crate::logic::serve::auth::authenticated_user;
-use bcrypt::{hash, verify, DEFAULT_COST};
+use crate::logic::serve::api::password_utils::{hash_password, verify_password};
+use crate::logic::serve::api::user_management::{create_user, delete_user_by_admin, list_all_users_by_admin, NewUser};
+use crate::logic::serve::api::token_service::{generate_and_store_token, revoke_token};
 use serde::Deserialize;
 use serde_json::json;
 use sled::Db;
 use std::sync::Arc;
-use uuid::Uuid;
-use warp::{
+
+use warp::{ // Shorten warp imports
     body::json as warp_body_json,
     http::StatusCode,
     reply::{json as warp_json, with_status},
     Filter, Rejection,
+    header::optional, // Add this for optional header extraction
 };
+
+use crate::logic::serve::auth::authenticated_user;
 
 #[derive(Deserialize)]
 struct AccountPayload {
     username: String,
     password: String,
     rootpass: Option<String>,
+}
+
+#[derive(Deserialize)] // Added for login specific payload if needed, or reuse AccountPayload
+struct LoginPayload {
+    username: String,
+    password: String,
 }
 
 /// POST /account/register
@@ -28,18 +38,10 @@ pub fn register(
         .and(warp::path!("account" / "register"))
         .and(warp_body_json())
         .map(move |payload: AccountPayload| {
-            let user_key = format!("user:{}", payload.username);
-            if db.contains_key(user_key.as_bytes()).unwrap_or(false) {
-                return StatusCode::CONFLICT;
-            }
-
-            // Hash the password before storing
-            let hashed_password = match hash(&payload.password, DEFAULT_COST) {
+            let hashed_password = match hash_password(&payload.password) {
                 Ok(h) => h,
-                Err(_) => return StatusCode::INTERNAL_SERVER_ERROR, // Or a more specific error
+                Err(status_code) => return status_code,
             };
-
-            let _ = db.insert(user_key.as_bytes(), hashed_password.as_bytes());
 
             let role = if payload
                 .rootpass
@@ -51,9 +53,17 @@ pub fn register(
             } else {
                 "user"
             };
-            let role_key = format!("role:{}", payload.username);
-            let _ = db.insert(role_key.as_bytes(), role.as_bytes());
-            StatusCode::CREATED
+
+            let new_user_data = NewUser {
+                username: &payload.username,
+                hashed_password: &hashed_password,
+                role,
+            };
+
+            match create_user(&db, new_user_data) {
+                Ok(_) => StatusCode::CREATED,
+                Err(status_code) => status_code,
+            }
         })
 }
 
@@ -62,7 +72,7 @@ pub fn login(db: Arc<Db>) -> impl Filter<Extract = impl warp::Reply, Error = Rej
     warp::post()
         .and(warp::path!("account" / "login"))
         .and(warp::body::json())
-        .map(move |payload: AccountPayload| {
+        .map(move |payload: LoginPayload| { // Changed to LoginPayload if it's different, or keep AccountPayload
             let user_key = format!("user:{}", payload.username);
             let err = || {
                 with_status(
@@ -71,38 +81,37 @@ pub fn login(db: Arc<Db>) -> impl Filter<Extract = impl warp::Reply, Error = Rej
                 )
             };
 
-            match db
-                .get(user_key.as_bytes())
-                .ok()
-                .flatten()
-                .map(|v| v.to_vec())
-            {
+            match db.get(user_key.as_bytes()).ok().flatten() {
                 Some(stored_hashed_password_bytes) => {
-                    // Convert stored bytes to string to verify
-                    let stored_hashed_password = match String::from_utf8(stored_hashed_password_bytes) {
+                    let stored_hashed_password_str = match String::from_utf8(stored_hashed_password_bytes.to_vec()) {
                         Ok(s) => s,
-                        Err(_) => return err(), // Or a more specific error if password wasn't valid UTF-8
+                        Err(_) => {
+                            eprintln!("Stored password for user {} is not valid UTF-8", payload.username);
+                            return err();
+                        }
                     };
 
-                    match verify(&payload.password, &stored_hashed_password) {
+                    match verify_password(&payload.password, &stored_hashed_password_str) {
                         Ok(true) => {
-                            let token = Uuid::new_v4().to_string();
-                            let tok_key = format!("token:{}", token);
-                            let _ = db.insert(tok_key.as_bytes(), payload.username.as_bytes());
-                            // Store role with token for easier lookup, or fetch role separately
-                            // For now, keeping it simple as original
-                            with_status(warp_json(&json!({ "token": token })), StatusCode::OK)
+                            match generate_and_store_token(&db, &payload.username) {
+                                Ok(token) => {
+                                    with_status(warp_json(&json!({ "token": token })), StatusCode::OK)
+                                }
+                                Err(status_code) => {
+                                    eprintln!("Token generation failed for user: {}", payload.username);
+                                    with_status(warp_json(&json!({ "error": "login failed" })), status_code)
+                                }
+                            }
                         }
                         Ok(false) => err(),
-                        Err(_) => {
-                            // bcrypt verify can error out for various reasons e.g. invalid hash format
-                            // log this error server-side
-                            eprintln!("Error verifying password for user {}", payload.username);
-                            err()
+                        Err(status_code) => {
+                            // Log specific bcrypt error on server side if needed from verify_password internal logging
+                            // The status_code from verify_password is typically UNAUTHORIZED
+                            with_status(warp_json(&json!({ "error": "invalid credentials" })), status_code)
                         }
                     }
                 }
-                _ => err(),
+                None => err(), // User not found
             }
         })
 }
@@ -115,16 +124,11 @@ pub fn delete_user(
     warp::delete()
         .and(warp::path!("account" / String))
         .and(auth)
-        .map(move |target: String, caller: String| {
-            let role_key = format!("role:{}", caller);
-            if let Ok(Some(role)) = db.get(role_key.as_bytes()) {
-                if &*role == b"root" {
-                    let _ = db.remove(format!("user:{}", target).as_bytes());
-                    let _ = db.remove(format!("role:{}", target).as_bytes());
-                    return StatusCode::OK;
-                }
+        .map(move |target_username: String, caller_username: String| {
+            match delete_user_by_admin(&db, &target_username, &caller_username) {
+                Ok(_) => StatusCode::OK,
+                Err(status_code) => status_code,
             }
-            StatusCode::FORBIDDEN
         })
 }
 
@@ -136,34 +140,46 @@ pub fn list_users(
     warp::get()
         .and(warp::path!("account" / "users"))
         .and(auth)
-        .map(move |caller: String| {
-            let role_key = format!("role:{}", caller);
-            let is_root = db
-                .get(role_key.as_bytes())
-                .ok()
-                .flatten()
-                .map(|v| v.as_ref() == b"root")
-                .unwrap_or(false);
-            if !is_root {
-                return with_status(
-                    warp_json(&json!({ "error": "forbidden" })),
-                    StatusCode::FORBIDDEN,
-                );
-            }
-
-            let mut users = Vec::new();
-            for item in db.iter().flatten() {
-                let key = String::from_utf8_lossy(&item.0);
-                if let Some(name) = key.strip_prefix("user:") {
-                    let role = db
-                        .get(format!("role:{}", name).as_bytes())
-                        .ok()
-                        .flatten()
-                        .and_then(|v| String::from_utf8(v.to_vec()).ok())
-                        .unwrap_or_else(|| "user".into());
-                    users.push(json!({ "username": name, "role": role }));
+        .map(move |caller_username: String| {
+            match list_all_users_by_admin(&db, &caller_username) {
+                Ok(users_json) => with_status(warp_json(&users_json), StatusCode::OK),
+                Err(status_code) => {
+                    with_status(warp_json(&json!({ "error": "forbidden or error" })), status_code)
                 }
             }
-            with_status(warp_json(&users), StatusCode::OK)
+        })
+}
+
+/// POST /account/logout
+pub fn logout(db: Arc<Db>) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+    let auth = authenticated_user(db.clone()); // Reuses existing auth to get username from token
+    warp::post()
+        .and(warp::path!("account" / "logout"))
+        .and(auth) // Ensures the user is logged in to log out
+        .and(optional::<String>("authorization")) // To extract the token itself
+        .map(move |username: String, auth_header: Option<String>| { // username from authenticated_user
+            if let Some(header) = auth_header {
+                if let Some(token_str) = header.strip_prefix("Bearer ") {
+                    match revoke_token(&db, token_str) {
+                        Ok(true) => {
+                            println!("User {} logged out, token revoked.", username);
+                            return with_status(warp_json(&json!({ "message": "logged out" })), StatusCode::OK);
+                        }
+                        Ok(false) => {
+                            // Token not found, but user was authenticated. This case should ideally not happen
+                            // if authenticated_user and revoke_token are in sync.
+                            eprintln!("Logout attempt for user {} with a token that was not found for revocation.", username);
+                            return with_status(warp_json(&json!({ "error": "logout failed, token not found" })), StatusCode::BAD_REQUEST);
+                        }
+                        Err(status_code) => {
+                            eprintln!("Failed to revoke token during logout for user {}: {:?}", username, status_code);
+                            return with_status(warp_json(&json!({ "error": "logout failed" })), status_code);
+                        }
+                    }
+                }
+            }
+            // No Bearer token found in header, though authenticated_user should have caught this.
+            // This is a fallback.
+            with_status(warp_json(&json!({ "error": "invalid token format" })), StatusCode::BAD_REQUEST)
         })
 }
