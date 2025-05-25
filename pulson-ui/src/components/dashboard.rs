@@ -257,7 +257,16 @@ pub fn dashboard() -> Html {
                             </div>
                         } else {
                             <div class="device-list">
-                                {for devices.iter().map(|device| {
+                                {for {
+                                    let mut sorted_devices = devices.iter().collect::<Vec<_>>();
+                                    sorted_devices.sort_by(|a, b| {
+                                        // Parse timestamps and sort by last_seen descending (most recent first)
+                                        let a_time = parse_timestamp(&a.last_seen).unwrap_or(0.0);
+                                        let b_time = parse_timestamp(&b.last_seen).unwrap_or(0.0);
+                                        b_time.partial_cmp(&a_time).unwrap_or(std::cmp::Ordering::Equal)
+                                    });
+                                    sorted_devices
+                                }.iter().map(|device| {
                                     let device_id = device.device_id.clone();
                                     let is_selected = selected_device.as_ref() == Some(&device.device_id);
                                     let on_click = {

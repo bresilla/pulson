@@ -185,26 +185,41 @@ form button:active {
 .dashboard-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
+    grid-template-rows: 1fr auto;
     gap: 1.5rem;
-    height: 100%;
+    height: calc(100vh - 120px); /* Subtract navigation height */
+    min-height: 650px;
+}
+
+.devices-panel,
+.topics-panel {
+    display: flex;
+    flex-direction: column;
+    background: #1e293b;
+    border: 1px solid #475569;
+    border-radius: 8px;
+    padding: 1.5rem;
+    overflow: hidden;
 }
 
 .devices-panel {
-    grid-row: 1 / 3;
+    grid-row: 1;
+    grid-column: 1;
 }
 
 .topics-panel {
     grid-row: 1;
+    grid-column: 2;
 }
 
 .ping-panel {
     grid-row: 2;
+    grid-column: 1;
 }
 
 .stats-panel {
     grid-column: 1 / 3;
-    grid-row: 3;
+    grid-row: 2;
 }
 
 /* Panel Styles */
@@ -234,7 +249,8 @@ form button:active {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    max-height: 60vh;
+    max-height: calc(100vh - 250px);
+    min-height: 450px;
     overflow-y: auto;
 }
 
@@ -304,7 +320,8 @@ form button:active {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    max-height: 60vh;
+    max-height: calc(100vh - 250px);
+    min-height: 450px;
     overflow-y: auto;
 }
 
