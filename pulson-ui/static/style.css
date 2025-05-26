@@ -230,48 +230,54 @@ form button:hover {
 }
 
 .sidebar-footer {
-    margin-top: auto;
-    padding-top: 15px;
-    border-top: 1px solid #25252b; /* Subtle separator */
-    position: relative;
+    padding: 10px;
+    border-top: 1px solid var(--border-color);
 }
 
 /* User Info Styles (Sidebar Footer) */
 .user-info-container {
-    /* Removed margin-bottom, will be handled by individual elements or the popup */
-    text-align: center;
-    margin-bottom: 10px; /* Space before other footer buttons */
+    position: relative; /* Required for absolute positioning of popup */
 }
 
 .user-menu-toggle {
-    cursor: pointer;
-    padding: 10px 12px; /* Increased padding */
-    border-radius: 4px; /* Flatter radius */
-    transition: background-color 0.2s ease;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.3s, border-color 0.3s;
+    border: 1px solid var(--accent-color); /* Accent color border */
+    background-color: var(--accent-color); /* Accent color background */
 }
 
 .user-menu-toggle:hover {
-    background-color: #25252b; /* Darker hover, consistent with other elements */
+    background-color: #d91820; /* Slightly darker accent on hover */
+    border-color: #d91820;
+}
+
+.profile-image-placeholder {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--accent-color); /* Use accent color */
+    margin-right: 10px;
+    margin-bottom: 4px; /* Lower the icon slightly */
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 .user-info-container .username {
     font-weight: bold;
-    /* display: block; No longer needed, flex handles it */
-    /* margin-bottom: 4px; */
-    color: #f0f0f0;
+    color: #ffffff; /* White text for better contrast on accent background */
 }
 
 .user-info-container .user-role {
     font-size: 0.85em;
-    color: #b0b0b0;
+    color: #f0f0f0; /* Light text for better contrast on accent background */
 }
 
 .user-menu-arrow {
     font-size: 0.7em;
+    color: #ffffff; /* White arrow for better contrast */
 }
 
 .user-menu-popup {
@@ -320,6 +326,53 @@ form button:hover {
     color: #777777;
 }
 
+/* Autoupdate control inside user menu */
+.user-menu-popup-item.auto-refresh-control {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    cursor: default; /* Not clickable as a whole, only the switch */
+}
+
+.user-menu-popup-item.auto-refresh-control:hover {
+    background-color: transparent; /* No hover effect for the container */
+}
+
+.pill-switch {
+    background-color: var(--border-color); /* Default off state */
+    border: 1px solid var(--border-color);
+    border-radius: 15px; /* Pill shape */
+    width: 44px; /* Width of the switch */
+    height: 22px; /* Height of the switch */
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    padding: 0; /* Remove default button padding */
+    display: flex; /* To help center the handle if needed, though position absolute is used */
+    align-items: center; /* Vertically center handle */
+}
+
+.pill-switch-handle {
+    background-color: white;
+    border-radius: 50%;
+    width: 18px; /* Diameter of the handle */
+    height: 18px; /* Diameter of the handle */
+    position: absolute;
+    top: 1px; /* Adjust for border */
+    left: 2px; /* Initial position (off) */
+    transition: left 0.3s ease, background-color 0.3s ease;
+}
+
+.pill-switch.active {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.pill-switch.active .pill-switch-handle {
+    left: 22px; /* Position when active (on) = width - handle_width - left_offset */
+}
+
 
 .sidebar .nav-button {
     display: block;
@@ -345,6 +398,9 @@ form button:hover {
     border-color: #eb1c24;
     color: #fff;
 }
+
+/* Auto Refresh Button */
+/* .auto-refresh-button styles removed as it's now integrated in user-info-container */
 
 /* Main Content Styles */
 .main-content {
@@ -439,9 +495,16 @@ form button:hover {
     background-color: #1c1c22; /* Darker background for topic items */
     padding: 12px 15px; /* Adjusted padding */
     border-radius: 4px; /* Flatter radius */
-    /* border: 1px solid rgba(235, 28, 36, 0.2); */ /* Removed border */
-    transition: background-color 0.2s ease, border-color 0.2s ease; /* Added border-color to transition */
+    transition: background-color 0.2s ease, border-color 0.2s ease;
     border: 1px solid transparent; /* Transparent border by default */
+    display: flex; /* Ensure topic-item is a flex container */
+    flex-direction: column; /* Stack its children (topic-main-row and topic-details) vertically */
+}
+
+.topic-main-row { /* New class for the main row (status + content) */
+    display: flex;
+    align-items: center;
+    gap: 15px; /* Space between status dot and content */
 }
 
 .topic-item:hover {
@@ -450,16 +513,50 @@ form button:hover {
     border-color: #eb1c24; /* Accent color border on hover */
 }
 
-.topic-item .topic-status {
-    margin-left: auto; /* Push status indicator to the end of the flex line */
-    /* Conflicting properties like padding, text-specific styles, and pill-shape border-radius are removed 
-       to allow base .topic-status styles (width, height, border-radius: 50%) to apply correctly. */
+.topic-item.selected {
+    border-color: #eb1c24; /* Accent color border when selected */
+    /* background-color: #202025; */ /* Optional: slightly different bg for selected topic if needed */
 }
 
-.topic-item.selected {
-    /* Add styles for selected topic if different from default expansion, e.g., slightly different background */
-    /* background-color: #202025; */ /* Optional: slightly different bg for selected topic */
-    /* border-left: 3px solid #eb1c24; */ /* Example: Accent border on the left when selected */
+.topic-item .topic-status {
+    /* margin-left: auto; */ /* Removed: No longer pushing to the end */
+    width: 24px; /* Larger status indicator */
+    height: 24px;
+    flex-shrink: 0; /* Prevent status indicator from shrinking */
+}
+
+.topic-item .topic-status::before { /* Outer circle */
+    width: 24px; /* Match new size */
+    height: 24px;
+}
+
+.topic-item .topic-status::after { /* Inner circle */
+    width: 12px; /* Adjust inner circle size proportionally */
+    height: 12px;
+}
+
+.topic-content { /* Class for the content next to the status dot */
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.topic-item .topic-header {
+    display: flex;
+    justify-content: space-between; /* Keep if other elements might be added here */
+    align-items: center;
+    /* margin-bottom: 2px; */ /* Adjust spacing if needed */
+}
+
+.topic-item .topic-name {
+    font-weight: 500;
+}
+
+.topic-item .topic-info {
+    display: flex;
+    flex-direction: column; /* Stack last-seen and exact-time */
+    font-size: 0.85em;
+    color: #a0a0a0;
 }
 
 .topic-details {
@@ -612,6 +709,17 @@ form button:hover {
 .user-menu-item small {
     font-size: 0.8em;
     color: #777777;
+}
+
+/* Profile Image Placeholder */
+.profile-image-placeholder {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--accent-color); /* Use accent color */
+    margin-right: 10px;
+    margin-bottom: 4px; /* Lower the icon slightly */
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 /* Loading, Error, and Empty States */

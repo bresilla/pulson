@@ -198,30 +198,6 @@ pub fn dashboard() -> Html {
         })
     };
 
-    let on_refresh = {
-        let devices = devices.clone();
-        let loading = loading.clone();
-        let error = error.clone();
-        Callback::from(move |_| {
-            let devices = devices.clone();
-            let loading = loading.clone();
-            let error = error.clone();
-            spawn_local(async move {
-                loading.set(true);
-                match fetch_devices().await {
-                    Ok(device_list) => {
-                        devices.set(device_list);
-                        error.set(None);
-                    }
-                    Err(e) => {
-                        error.set(Some(e));
-                    }
-                }
-                loading.set(false);
-            });
-        })
-    };
-
     let toggle_auto_refresh = {
         let auto_refresh = auto_refresh.clone();
         Callback::from(move |_| {
@@ -323,7 +299,7 @@ pub fn dashboard() -> Html {
                 <div class="sidebar-footer">
                     <div class="user-info-container">
                         <div class="user-menu-toggle" onclick={toggle_user_menu.clone()}>
-                            // TODO: Replace "User" with actual dynamic username
+                            <div class="profile-image-placeholder"></div>
                             <span class="username">
                                 {
                                     if let Some(ud) = &*user_data {
@@ -333,7 +309,6 @@ pub fn dashboard() -> Html {
                                     }
                                 }
                             </span> 
-                            // TODO: Replace with actual root status logic
                             <span class="user-role">
                                 {
                                     if let Some(ud) = &*user_data {
@@ -351,6 +326,16 @@ pub fn dashboard() -> Html {
                         </div>
                         if *user_menu_visible {
                             <div class="user-menu-popup">
+                                <div class="user-menu-popup-item auto-refresh-control">
+                                    <span>{"Autoupdate"}</span>
+                                    <button
+                                        class={classes!("pill-switch", (*auto_refresh).then(|| "active"))}
+                                        onclick={toggle_auto_refresh.clone()}
+                                        title={if *auto_refresh { "Auto-Refresh ON" } else { "Auto-Refresh OFF" }}
+                                    >
+                                        <span class="pill-switch-handle"></span>
+                                    </button>
+                                </div>
                                 <button class="user-menu-popup-item" onclick={logout.clone()}>
                                     {"Logout"}
                                 </button>
@@ -361,24 +346,6 @@ pub fn dashboard() -> Html {
                             </div>
                         }
                     </div>
-                    <button
-                        class="nav-button refresh-button"
-                        onclick={on_refresh}
-                        title="Refresh data"
-                    >
-                        {"🔄 Refresh"}
-                    </button>
-                    <button
-                        class={classes!("nav-button", "auto-refresh-button", (*auto_refresh).then(|| "active"))}
-                        onclick={toggle_auto_refresh}
-                        title={if *auto_refresh { "Disable auto-refresh" } else { "Enable auto-refresh" }}
-                    >
-                        if *auto_refresh {
-                            {"⏸️ Auto"}
-                        } else {
-                            {"▶️ Auto"}
-                        }
-                    </button>
                 </div>
             </aside>
 
@@ -412,20 +379,24 @@ pub fn dashboard() -> Html {
                                     };
                                     html! {
                                         <div class={classes!("topic-item", status_class, is_topic_selected.then(|| "selected"))} onclick={on_click_topic}>
-                                            <div class="topic-header">
-                                                <span class="topic-name">{&topic.topic}</span>
+                                            <div class="topic-main-row"> // New wrapper for the main row content
                                                 <span class={classes!("topic-status", status_class)}>
-                                                    // {get_topic_status(&topic.last_seen)} // Removed text
+                                                    // Status indicator dot
                                                 </span>
-                                            </div>
-                                            <div class="topic-info">
-                                                <small class="last-seen">
-                                                    {"Last ping: "}{format_relative_time(&topic.last_seen)}
-                                                </small>
-                                                <small class="exact-time">
-                                                    {format_exact_time(&topic.last_seen)}
-                                                </small>
-                                            </div>
+                                                <div class="topic-content">
+                                                    <div class="topic-header">
+                                                        <span class="topic-name">{&topic.topic}</span>
+                                                    </div>
+                                                    <div class="topic-info">
+                                                        <small class="last-seen">
+                                                            {"Last ping: "}{format_relative_time(&topic.last_seen)}
+                                                        </small>
+                                                        <small class="exact-time">
+                                                            {format_exact_time(&topic.last_seen)}
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </div> // End of topic-main-row
                                             if is_topic_selected {
                                                 <div class="topic-details">
                                                     <h4>{"Last 12 Hours Activity (Placeholder)"}</h4>
