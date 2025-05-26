@@ -242,7 +242,7 @@ form button:hover {
 .user-menu-toggle {
     display: flex;
     align-items: center;
-    padding: 10px;
+    padding: 12px 10px 8px 10px; /* Adjusted padding: top/bottom to shift content lower */
     cursor: pointer;
     border-radius: 4px;
     transition: background-color 0.3s, border-color 0.3s;
@@ -259,9 +259,10 @@ form button:hover {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background-color: var(--accent-color); /* Use accent color */
+    background-color: #FFFFFF; /* White background */
+    border: 2px solid var(--accent-color); /* Accent color border */
+    box-sizing: border-box; /* Ensure width/height includes border */
     margin-right: 10px;
-    margin-bottom: 4px; /* Lower the icon slightly */
     flex-shrink: 0; /* Prevent shrinking */
 }
 
@@ -716,9 +717,8 @@ form button:hover {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background-color: var(--accent-color); /* Use accent color */
+    background-color: var(--border-color); /* Placeholder color */
     margin-right: 10px;
-    margin-bottom: 4px; /* Lower the icon slightly */
     flex-shrink: 0; /* Prevent shrinking */
 }
 
