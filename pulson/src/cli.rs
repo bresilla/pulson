@@ -61,6 +61,29 @@ pub enum Commands {
         webui: bool,
     },
 
+    /// Device management (list, delete)
+    Device {
+        #[command(subcommand)]
+        action: DeviceAction,
+    },
+
+    /// Send a ping for a given device_id and topic
+    Ping {
+        #[arg(short = 'd', long)]
+        device_id: String,
+        #[arg(short = 't', long)]
+        topic: String,
+    },
+
+    /// User account management (register, login, logout, delete, list)
+    Account {
+        #[command(subcommand)]
+        action: AccountAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum DeviceAction {
     /// Query the running server for all tracked devices (or topics for one)
     List {
         #[arg(value_name = "DEVICE_ID")]
@@ -84,19 +107,10 @@ pub enum Commands {
         #[arg(short = 'x', long)]
         extended: bool,
     },
-
-    /// Send a ping for a given device_id and topic
-    Ping {
-        #[arg(short = 'd', long)]
+    /// Delete a device by its ID
+    Delete {
+        #[arg(value_name = "DEVICE_ID")]
         device_id: String,
-        #[arg(short = 't', long)]
-        topic: String,
-    },
-
-    /// User account management (register, login, logout, delete, list)
-    Account {
-        #[command(subcommand)]
-        action: AccountAction,
     },
 }
 

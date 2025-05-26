@@ -12,6 +12,11 @@ pub struct PingPayload {
     pub topic: String,
 }
 
+#[derive(serde::Deserialize)]
+pub struct DeleteDevicePayload {
+    pub device_id: String,
+}
+
 pub fn ping(
     db: Arc<sled::Db>,
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
@@ -109,5 +114,56 @@ pub fn list_one(
                 }
             }
             warp_json(&topics)
+        })
+}
+
+pub fn delete_device(
+    db: Arc<sled::Db>,
+) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+    let auth = authenticated_user(db.clone());
+    warp::post()
+        .and(warp::path("device"))
+        .and(warp::path("delete"))
+        .and(warp::path::end())
+        .and(auth)
+        .and(warp_body_json())
+        .map(move |username: String, payload: DeleteDevicePayload| {
+            let user_prefix = format!("{}:", username);
+            let device_prefix_to_delete = format!("{}{}|", user_prefix, payload.device_id);
+            let mut deleted_count = 0;
+
+            // Iterate over all keys and remove those matching the pattern
+            // This is not the most efficient way for large datasets,
+            // but sled does not directly support prefix deletion in a single command.
+            for item in db.iter() {
+                match item {
+                    Ok((key_bytes, _)) => {
+                        if let Ok(key_str) = String::from_utf8(key_bytes.to_vec()) {
+                            if key_str.starts_with(&device_prefix_to_delete) {
+                                match db.remove(&key_bytes) {
+                                    Ok(_) => deleted_count += 1,
+                                    Err(e) => {
+                                        eprintln!("Failed to delete key {}: {}", key_str, e);
+                                        // Optionally, decide if this should be a hard error
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error iterating db for deletion: {}", e);
+                        // Optionally, decide if this should be a hard error
+                    }
+                }
+            }
+
+            if deleted_count > 0 {
+                // Successfully deleted some entries
+                StatusCode::OK
+            } else {
+                // No entries found for that device_id for that user, or deletion failed silently for all
+                // Consider if a 404 Not Found might be more appropriate if no keys were found
+                StatusCode::NOT_FOUND // Or OK if "nothing to delete" is also a success
+            }
         })
 }

@@ -5,7 +5,7 @@ pub mod user_management;
 pub mod token_service; // Add this line
 
 use crate::logic::serve::api::account_routes::{delete_user, list_users, login, register, user_info}; // Added user_info
-use crate::logic::serve::api::device_routes::{list_all, list_one, ping};
+use crate::logic::serve::api::device_routes::{list_all, list_one, ping, delete_device};
 use std::sync::Arc;
 use warp::Filter;
 
@@ -24,6 +24,7 @@ pub fn api_routes(
     let p = ping(db.clone());
     let la = list_all(db.clone());
     let lo = list_one(db.clone());
+    let dd = delete_device(db.clone()); // Add delete_device route
 
-    reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(lo).or(la) // Add userinfo_route to the chain
+    reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(lo).or(la).or(dd) // Add dd to the chain
 }

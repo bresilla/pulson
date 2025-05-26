@@ -4,8 +4,8 @@ mod cli;
 mod logic;
 
 use clap::Parser;
-use cli::{AccountAction, Cli, Commands};
-use logic::client::{account, list, ping};
+use cli::{AccountAction, Cli, Commands, DeviceAction};
+use logic::client::{account, list, ping, device};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -23,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
     let token = match &args.command {
         Commands::Serve { .. } => None,
         Commands::Account { .. } => None,
-        Commands::List { .. } | Commands::Ping { .. } => match account::read_token() {
+        Commands::Device { .. } | Commands::Ping { .. } => match account::read_token() {
             Ok(t) => Some(t),
             Err(_) => {
                 eprintln!("✗ Not logged in: please run `pulson account login` first`");
@@ -44,29 +44,38 @@ async fn main() -> anyhow::Result<()> {
             logic::serve::run(host, port, db_path, daemon, root_pass, webui).await?
         }
 
-        Commands::List { 
-            device_id,
-            format,
-            sort,
-            status,
-            watch,
-            interval,
-            extended,
-        } => {
-            // Client: list devices or topics
-            list::run(
-                host, 
-                port, 
-                device_id, 
-                token.unwrap(),
+        Commands::Device { action } => match action {
+            DeviceAction::List {
+                device_id,
                 format,
                 sort,
                 status,
                 watch,
                 interval,
                 extended,
-            ).await?
-        }
+            } => {
+                // Client: list devices or topics
+                list::run(
+                    host,
+                    port,
+                    device_id,
+                    token.unwrap(),
+                    format,
+                    sort,
+                    status,
+                    watch,
+                    interval,
+                    extended,
+                )
+                .await?
+            }
+            DeviceAction::Delete { device_id } => {
+                // Placeholder for delete device logic
+                // println!("Deleting device: {}", device_id);
+                // TODO: Implement actual device deletion logic e.g.:
+                device::delete(host, port, device_id, token.unwrap()).await?
+            }
+        },
 
         Commands::Ping { device_id, topic } => {
             // Client: send a ping
