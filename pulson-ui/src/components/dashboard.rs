@@ -291,7 +291,7 @@ pub fn dashboard() -> Html {
                                         <div class="device-header">
                                             <span class="device-id">{&device.device_id}</span>
                                             <span class={classes!("device-status", status_class)}>
-                                                {get_device_status(&device.last_seen)}
+                                                // {get_device_status(&device.last_seen)} // Removed text
                                             </span>
                                         </div>
                                         <div class="device-info">
@@ -392,7 +392,7 @@ pub fn dashboard() -> Html {
                                             <div class="topic-header">
                                                 <span class="topic-name">{&topic.topic}</span>
                                                 <span class={classes!("topic-status", status_class)}>
-                                                    {get_topic_status(&topic.last_seen)}
+                                                    // {get_topic_status(&topic.last_seen)} // Removed text
                                                 </span>
                                             </div>
                                             <div class="topic-info">

@@ -610,42 +610,111 @@ form button:hover {
 /* Status Indicator Refinements */
 .device-status,
 .topic-status {
-    padding: 3px 8px;
-    border-radius: 12px; /* Pill shape */
-    font-size: 0.75em;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    width: 16px; /* Increased size for two circles */
+    height: 16px;
+    border-radius: 50%; /* Make it a circle */
+    position: relative; /* For positioning the inner circle */
+    /* padding: 3px 8px; */ /* Removed padding as it's a visual indicator now */
+    /* font-size: 0.75em; */ /* Removed text-specific styles */
+    /* font-weight: bold; */
+    /* text-transform: uppercase; */
+    /* letter-spacing: 0.5px; */
+    display: inline-block; /* Ensure it behaves like an element */
+    vertical-align: middle; /* Align with text if any were present */
 }
 
+.device-status::before, /* Outer circle */
+.topic-status::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 16px; /* Outer circle size */
+    height: 16px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    animation: pulse-outer 2s infinite ease-in-out;
+}
+
+.device-status::after, /* Inner circle */
+.topic-status::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 8px; /* Inner circle size */
+    height: 8px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    animation: pulse-inner 2s infinite ease-in-out;
+}
+
+/* Color definitions for status indicators */
+.device-status.online::before, .topic-status.online::before { background-color: rgba(39, 174, 96, 0.3); }
+.device-status.online::after,  .topic-status.online::after  { background-color: rgb(39, 174, 96); }
+
+.device-status.warning::before, .topic-status.warning::before { background-color: rgba(243, 156, 18, 0.3); }
+.device-status.warning::after,  .topic-status.warning::after  { background-color: rgb(243, 156, 18); }
+
+.device-status.offline::before, .topic-status.offline::before { background-color: rgba(231, 76, 60, 0.3); }
+.device-status.offline::after,  .topic-status.offline::after  { background-color: rgb(231, 76, 60); }
+
+.device-status.unknown::before, .topic-status.unknown::before { background-color: rgba(128, 128, 128, 0.3); }
+.device-status.unknown::after,  .topic-status.unknown::after  { background-color: rgb(128, 128, 128); }
+
+/* Remove old text-based color rules */
+/*
 .device-status.online,
 .topic-status.online {
-    background-color: rgba(39, 174, 96, 0.2); /* Green with transparency */
+    background-color: rgba(39, 174, 96, 0.2);
     color: #27ae60;
 }
 
 .device-status.warning,
 .topic-status.warning {
-    background-color: rgba(243, 156, 18, 0.2); /* Yellow/Orange with transparency */
+    background-color: rgba(243, 156, 18, 0.2);
     color: #f39c12;
 }
 
 .device-status.offline,
 .topic-status.offline {
-    background-color: rgba(231, 76, 60, 0.2); /* Red with transparency */
+    background-color: rgba(231, 76, 60, 0.2);
     color: #e74c3c;
 }
 
 .device-status.unknown,
 .topic-status.unknown {
-    background-color: rgba(128, 128, 128, 0.2); /* Grey with transparency */
+    background-color: rgba(128, 128, 128, 0.2);
     color: #808080;
 }
+*/
 
 /* Ensure status text is white when parent item is selected */
-.device-item.selected .device-status,
-.topic-item.selected .topic-status {
-    color: #fff;
+/* This rule might not be needed anymore if there's no text, but keeping for ::after color if selected state changes it */
+.device-item.selected .device-status::after,
+.topic-item.selected .topic-status::after {
+    /* If selected state should change inner circle color, define here. */
+    /* For now, it inherits the standard status color. */
+}
+
+@keyframes pulse-outer {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.7;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 0.4;
+    }
+}
+
+@keyframes pulse-inner {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(0.8);
+    }
 }
 
 /* General Button Flatness */
