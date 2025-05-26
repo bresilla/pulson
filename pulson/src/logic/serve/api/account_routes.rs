@@ -1,10 +1,9 @@
 use crate::logic::serve::api::password_utils::{hash_password, verify_password};
 use crate::logic::serve::api::user_management::{create_user, delete_user_by_admin, list_all_users_by_admin, NewUser};
 use crate::logic::serve::api::token_service::{generate_and_store_token, revoke_token};
+use crate::logic::serve::database::{Database, get_user_password_hash, get_user_role};
 use serde::Deserialize;
 use serde_json::json;
-use sled::Db;
-use std::sync::Arc;
 
 use warp::{ // Shorten warp imports
     body::json as warp_body_json,
@@ -37,7 +36,7 @@ struct LoginPayload {
 
 /// POST /account/register
 pub fn register(
-    db: Arc<Db>,
+    db: Database,
     root_pass: Option<String>,
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     warp::post()
@@ -46,7 +45,10 @@ pub fn register(
         .map(move |payload: AccountPayload| {
             let hashed_password = match hash_password(&payload.password) {
                 Ok(h) => h,
-                Err(status_code) => return status_code,
+                Err(status_code) => return with_status(
+                    warp_json(&json!({ "error": "password hashing failed" })),
+                    status_code,
+                ),
             };
 
             let role = if payload
@@ -67,19 +69,24 @@ pub fn register(
             };
 
             match create_user(&db, new_user_data) {
-                Ok(_) => StatusCode::CREATED,
-                Err(status_code) => status_code,
+                Ok(_) => with_status(
+                    warp_json(&json!({ "message": "user created successfully" })),
+                    StatusCode::CREATED,
+                ),
+                Err(status_code) => with_status(
+                    warp_json(&json!({ "error": "user creation failed" })),
+                    status_code,
+                ),
             }
         })
 }
 
 /// POST /account/login
-pub fn login(db: Arc<Db>) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+pub fn login(db: Database) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     warp::post()
         .and(warp::path!("account" / "login"))
         .and(warp::body::json())
-        .map(move |payload: LoginPayload| { // Changed to LoginPayload if it's different, or keep AccountPayload
-            let user_key = format!("user:{}", payload.username);
+        .map(move |payload: AccountPayload| {
             let err = || {
                 with_status(
                     warp_json(&json!({ "error": "invalid credentials" })),
@@ -87,17 +94,9 @@ pub fn login(db: Arc<Db>) -> impl Filter<Extract = impl warp::Reply, Error = Rej
                 )
             };
 
-            match db.get(user_key.as_bytes()).ok().flatten() {
-                Some(stored_hashed_password_bytes) => {
-                    let stored_hashed_password_str = match String::from_utf8(stored_hashed_password_bytes.to_vec()) {
-                        Ok(s) => s,
-                        Err(_) => {
-                            eprintln!("Stored password for user {} is not valid UTF-8", payload.username);
-                            return err();
-                        }
-                    };
-
-                    match verify_password(&payload.password, &stored_hashed_password_str) {
+            match get_user_password_hash(&db, &payload.username) {
+                Ok(Some(stored_hashed_password)) => {
+                    match verify_password(&payload.password, &stored_hashed_password) {
                         Ok(true) => {
                             match generate_and_store_token(&db, &payload.username) {
                                 Ok(token) => {
@@ -111,20 +110,19 @@ pub fn login(db: Arc<Db>) -> impl Filter<Extract = impl warp::Reply, Error = Rej
                         }
                         Ok(false) => err(),
                         Err(status_code) => {
-                            // Log specific bcrypt error on server side if needed from verify_password internal logging
-                            // The status_code from verify_password is typically UNAUTHORIZED
                             with_status(warp_json(&json!({ "error": "invalid credentials" })), status_code)
                         }
                     }
                 }
-                None => err(), // User not found
+                Ok(None) => err(), // User not found
+                Err(_) => err(), // Database error
             }
         })
 }
 
 /// DELETE /account/<username>
 pub fn delete_user(
-    db: Arc<Db>,
+    db: Database,
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone());
     warp::delete()
@@ -132,15 +130,21 @@ pub fn delete_user(
         .and(auth)
         .map(move |target_username: String, caller_username: String| {
             match delete_user_by_admin(&db, &target_username, &caller_username) {
-                Ok(_) => StatusCode::OK,
-                Err(status_code) => status_code,
+                Ok(_) => with_status(
+                    warp_json(&json!({ "message": "user deleted successfully" })),
+                    StatusCode::OK,
+                ),
+                Err(status_code) => with_status(
+                    warp_json(&json!({ "error": "user deletion failed" })),
+                    status_code,
+                ),
             }
         })
 }
 
 /// GET /account/users
 pub fn list_users(
-    db: Arc<Db>,
+    db: Database,
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone());
     warp::get()
@@ -157,7 +161,7 @@ pub fn list_users(
 }
 
 /// POST /account/logout
-pub fn logout(db: Arc<Db>) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+pub fn logout(db: Database) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone()); // Reuses existing auth to get username from token
     warp::post()
         .and(warp::path!("account" / "logout"))
@@ -191,17 +195,15 @@ pub fn logout(db: Arc<Db>) -> impl Filter<Extract = impl warp::Reply, Error = Re
 }
 
 /// GET /api/userinfo
-pub fn user_info(db: Arc<Db>) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+pub fn user_info(db: Database) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone());
     warp::get()
-        .and(warp::path!("api" / "userinfo")) // Corrected: Removed backslashes
+        .and(warp::path!("userinfo"))
         .and(auth)
         .map(move |username: String| {
-            let role_key = format!("role:{}", username); // Corrected: Removed backslashes
-            match db.get(role_key.as_bytes()) {
-                Ok(Some(role_bytes)) => {
-                    let role = String::from_utf8_lossy(&role_bytes).to_string();
-                    let is_root = role == "root"; // Corrected: Removed backslashes
+            match get_user_role(&db, &username) {
+                Ok(Some(role)) => {
+                    let is_root = role == "root";
                     let user_info_response = UserInfoResponse {
                         username,
                         is_root,
@@ -212,14 +214,14 @@ pub fn user_info(db: Arc<Db>) -> impl Filter<Extract = impl warp::Reply, Error =
                     // Role not found, which is unexpected for an authenticated user
                     eprintln!("Role not found for authenticated user: {}", username);
                     with_status(
-                        warp_json(&json!({ "error": "user role not found" })), // Corrected: Removed backslashes
+                        warp_json(&json!({ "error": "user role not found" })),
                         StatusCode::INTERNAL_SERVER_ERROR,
                     )
                 }
-                Err(e) => {
-                    eprintln!("Database error fetching role for user {}: {}", username, e);
+                Err(_) => {
+                    eprintln!("Database error fetching role for user {}", username);
                     with_status(
-                        warp_json(&json!({ "error": "database error" })), // Corrected: Removed backslashes
+                        warp_json(&json!({ "error": "database error" })),
                         StatusCode::INTERNAL_SERVER_ERROR,
                     )
                 }

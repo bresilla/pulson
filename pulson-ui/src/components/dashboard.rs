@@ -10,7 +10,7 @@ use yew_router::prelude::*;
 #[derive(Clone, PartialEq, Deserialize)]
 pub struct DeviceInfo {
     pub device_id: String,
-    pub last_seen: String,
+    pub last_seen: String, // Keep as String since API returns mixed formats
 }
 
 #[derive(Clone, PartialEq, Deserialize)]
@@ -449,7 +449,7 @@ async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
     let token = LocalStorage::get::<String>("pulson_token")
         .map_err(|_| "No authentication token found".to_string())?;
 
-    let request = Request::get("/devices")
+    let request = Request::get("/api/devices")
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await
@@ -469,7 +469,7 @@ async fn fetch_topics(device_id: &str) -> Result<Vec<TopicInfo>, String> {
     let token = LocalStorage::get::<String>("pulson_token")
         .map_err(|_| "No authentication token found".to_string())?;
 
-    let request = Request::get(&format!("/devices/{}", device_id))
+    let request = Request::get(&format!("/api/devices/{}", device_id))
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await

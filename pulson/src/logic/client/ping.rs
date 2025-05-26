@@ -15,7 +15,7 @@ pub async fn run(
     token: String,
 ) -> anyhow::Result<()> {
     let client = Client::new();
-    let url = format!("http://{}:{}/ping", host, port);
+    let url = format!("http://{}:{}/api/ping", host, port);
 
     let resp = client
         .post(&url)

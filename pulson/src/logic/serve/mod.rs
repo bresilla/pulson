@@ -1,14 +1,15 @@
 pub mod api;
 pub mod auth;
+pub mod database;
 pub mod ui;
 
 use crate::logic::serve::api::api_routes;
 use crate::logic::serve::auth::Unauthorized;
+use crate::logic::serve::database::init_database;
 use crate::logic::serve::ui::ui_routes;
 use daemonize::Daemonize;
 use shellexpand;
-use sled;
-use std::{net::IpAddr, path::PathBuf, sync::Arc};
+use std::net::IpAddr;
 use warp::{Filter, Rejection};
 
 pub async fn run(
@@ -28,9 +29,14 @@ pub async fn run(
             .start()?;
     }
 
-    // 2) Open sled DB (expanding ~)
+    // 2) Initialize SQLite database (expanding ~)
     let expanded = shellexpand::tilde(&db_path).into_owned();
-    let db = Arc::new(sled::open(PathBuf::from(expanded))?);
+    let db_file = if expanded.ends_with(".db") { 
+        expanded 
+    } else { 
+        format!("{}/pulson.db", expanded) 
+    };
+    let db = init_database(&db_file)?;
 
     // 3) Build API routes
     let api = api_routes(db.clone(), root_pass.clone())

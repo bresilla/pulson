@@ -318,7 +318,6 @@ pub async fn run(
         run_single_fetch(&client, &host, port, &device_id, &token, &format, &sort, &status, extended).await
     }
 }
-
 async fn run_single_fetch(
     client: &Client,
     host: &str,
@@ -332,15 +331,30 @@ async fn run_single_fetch(
 ) -> anyhow::Result<()> {
     if let Some(dev) = device_id {
         // Fetch topics for specific device
-        let url = format!("http://{}:{}/devices/{}", host, port, dev);
+        let url = format!("http://{}:{}/api/devices/{}", host, port, dev);
         let resp = client.get(&url).bearer_auth(token).send().await?;
 
         if !resp.status().is_success() {
-            anyhow::bail!("Server responded with status {}: {}", resp.status(), resp.text().await?);
+            anyhow::bail!(
+                "Server responded with status {}: {}",
+                resp.status(),
+                resp.text().await?
+            );
         }
 
-        let mut topics: Vec<TopicInfo> = resp.json().await?;
-        
+        // first deserialize into a serde_json::Value so we can branch on its shape
+        let json_val: serde_json::Value = resp.json().await?;
+        // now extract an array of TopicInfo from either an array or a map containing "topics"
+        let mut topics: Vec<TopicInfo> = if let Some(arr) = json_val.as_array() {
+            // raw [... ] at top level
+            serde_json::from_value(serde_json::Value::Array(arr.clone()))?
+        } else if let Some(arr) = json_val.get("topics").and_then(|v| v.as_array()) {
+            // wrapped { "topics": [ ... ] }
+            serde_json::from_value(serde_json::Value::Array(arr.clone()))?
+        } else {
+            anyhow::bail!("Unexpected response format: {}", json_val);
+        };
+
         // Filter and sort topics
         topics = filter_topics(topics, status);
         sort_topics(&mut topics, sort);
@@ -367,11 +381,15 @@ async fn run_single_fetch(
         }
     } else {
         // Fetch all devices
-        let url = format!("http://{}:{}/devices", host, port);
+        let url = format!("http://{}:{}/api/devices", host, port);
         let resp = client.get(&url).bearer_auth(token).send().await?;
 
         if !resp.status().is_success() {
-            anyhow::bail!("Server responded with status {}: {}", resp.status(), resp.text().await?);
+            anyhow::bail!(
+                "Server responded with status {}: {}",
+                resp.status(),
+                resp.text().await?
+            );
         }
 
         let mut devices: Vec<DeviceInfo> = resp.json().await?;
@@ -393,17 +411,28 @@ async fn run_single_fetch(
                     
                     // Show summary
                     if extended {
-                        let online = devices.iter().filter(|d| DeviceStatus::from_last_seen(&d.last_seen) == DeviceStatus::Online).count();
-                        let warning = devices.iter().filter(|d| DeviceStatus::from_last_seen(&d.last_seen) == DeviceStatus::Warning).count();
-                        let offline = devices.iter().filter(|d| DeviceStatus::from_last_seen(&d.last_seen) == DeviceStatus::Offline).count();
+                        let online = devices
+                            .iter()
+                            .filter(|d| DeviceStatus::from_last_seen(&d.last_seen) == DeviceStatus::Online)
+                            .count();
+                        let warning = devices
+                            .iter()
+                            .filter(|d| DeviceStatus::from_last_seen(&d.last_seen) == DeviceStatus::Warning)
+                            .count();
+                        let offline = devices
+                            .iter()
+                            .filter(|d| DeviceStatus::from_last_seen(&d.last_seen) == DeviceStatus::Offline)
+                            .count();
                         
                         println!();
-                        println!("{} {} online, {} warning, {} offline | {} total devices",
-                                "Summary:".bright_white().bold(),
-                                online.to_string().green(),
-                                warning.to_string().yellow(),
-                                offline.to_string().red(),
-                                devices.len().to_string().bright_blue());
+                        println!(
+                            "{} {} online, {} warning, {} offline | {} total devices",
+                            "Summary:".bright_white().bold(),
+                            online.to_string().green(),
+                            warning.to_string().yellow(),
+                            offline.to_string().red(),
+                            devices.len().to_string().bright_blue()
+                        );
                     }
                 }
             }

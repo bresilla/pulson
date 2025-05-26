@@ -70,7 +70,7 @@ fn login() -> Html {
                 };
 
                 // .body(...) returns Result<Request, Error>, so unwrap()
-                let request = Request::post("/account/login")
+                let request = Request::post("/api/account/login")
                     .header("Content-Type", "application/json")
                     .body(serde_json::to_string(&payload).unwrap())
                     .unwrap();

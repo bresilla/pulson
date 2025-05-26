@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use crate::logic::serve::database::Database;
 use warp::{header::optional, reject::Reject, Filter, Rejection};
 
 use crate::logic::serve::api::token_service::validate_token;
@@ -8,9 +8,9 @@ use crate::logic::serve::api::token_service::validate_token;
 pub struct Unauthorized;
 impl Reject for Unauthorized {}
 
-/// A filter that extracts `Authorization: Bearer <token>` and looks up the username in sled.
+/// A filter that extracts `Authorization: Bearer <token>` and looks up the username in the database.
 pub fn authenticated_user(
-    db: Arc<sled::Db>,
+    db: Database,
 ) -> impl Filter<Extract = (String,), Error = Rejection> + Clone {
     optional::<String>("authorization").and_then(move |auth_header: Option<String>| {
         let db_clone = db.clone();

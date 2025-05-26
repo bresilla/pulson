@@ -24,13 +24,23 @@ pub fn ui_routes() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejecti
             }
         });
 
-    // 2) SPA fallback
-    let spa = warp::get().and(warp::path::full()).map(|_| {
-        let file = Asset::get("index.html").expect("index.html missing");
-        Response::builder()
-            .header("content-type", "text/html; charset=utf-8")
-            .body(file.data.into_owned())
-    });
+    // 2) SPA fallback - only for GET requests that don't start with /api
+    let spa = warp::get()
+        .and(warp::path::full())
+        .and_then(|path: warp::path::FullPath| async move {
+            // Don't handle API routes - let them 404 if not found
+            if path.as_str().starts_with("/api") {
+                Err(warp::reject::not_found())
+            } else {
+                Ok(())
+            }
+        })
+        .map(|_| {
+            let file = Asset::get("index.html").expect("index.html missing");
+            Response::builder()
+                .header("content-type", "text/html; charset=utf-8")
+                .body(file.data.into_owned())
+        });
 
     static_files.or(spa)
 }

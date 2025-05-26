@@ -32,7 +32,7 @@ pub async fn register(
     password: String,
     rootpass: Option<String>,
 ) -> anyhow::Result<()> {
-    let url = format!("http://{}:{}/account/register", host, port);
+    let url = format!("http://{}:{}/api/account/register", host, port);
     let payload = AccountPayload {
         username: &username,
         password: &password,
@@ -53,7 +53,7 @@ pub async fn login(
     username: String,
     password: String,
 ) -> anyhow::Result<()> {
-    let url = format!("http://{}:{}/account/login", host, port);
+    let url = format!("http://{}:{}/api/account/login", host, port);
     let payload = AccountPayload {
         username: &username,
         password: &password,
@@ -62,8 +62,7 @@ pub async fn login(
     let resp = Client::new().post(&url).json(&payload).send().await?;
 
     if resp.status().is_success() {
-        // specify Value so .json() knows what to parse
-        let json: Value = resp.json::<Value>().await?;
+        let json: Value = resp.json().await?;
         let tok = json["token"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("no token in response"))?
@@ -85,7 +84,7 @@ pub async fn logout(host: String, port: u16) -> anyhow::Result<()> {
         }
     };
 
-    let url = format!("http://{}:{}/account/logout", host, port);
+    let url = format!("http://{}:{}/api/account/logout", host, port);
     let client = Client::new();
     let resp = client
         .post(&url)
@@ -130,7 +129,6 @@ pub async fn delete(host: String, port: u16, target: String) -> anyhow::Result<(
 
 /// List all users (must be root)
 pub async fn list_users(host: String, port: u16) -> anyhow::Result<()> {
-    // load token
     let token = match read_token() {
         Ok(t) => t,
         Err(_) => {
@@ -147,10 +145,27 @@ pub async fn list_users(host: String, port: u16) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    // Expecting JSON array of { username, role }
-    let users: Vec<Value> = resp.json().await?;
+    let text = resp.text().await?;
+    let users_arr: Vec<Value> = if text.trim().is_empty() {
+        Vec::new()
+    } else {
+        let json_val: Value = serde_json::from_str(&text)?;
+        if let Some(arr) = json_val.as_array() {
+            arr.clone()
+        } else if let Some(arr) = json_val.get("users").and_then(|v| v.as_array()) {
+            arr.clone()
+        } else {
+            anyhow::bail!("Unexpected response format: {}", json_val);
+        }
+    };
+
+    if users_arr.is_empty() {
+        println!("No users found.");
+        return Ok(());
+    }
+
     println!("{:<20} ROLE", "USERNAME");
-    for u in users {
+    for u in users_arr {
         let name = u["username"].as_str().unwrap_or("<invalid>");
         let role = u["role"].as_str().unwrap_or("<invalid>");
         println!("{:<20} {}", name, role);
