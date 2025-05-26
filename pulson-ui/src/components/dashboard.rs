@@ -249,7 +249,6 @@ pub fn dashboard() -> Html {
                 <div class="sidebar-header">
                     <img src="/static/logo.svg" alt="Pulson Logo" class="nav-logo" />
                     <h1>{"pulson"}</h1>
-                    <span class="nav-subtitle">{"System Monitor"}</span>
                 </div>
 
                 <nav class="sidebar-nav">
@@ -372,8 +371,8 @@ pub fn dashboard() -> Html {
             <main class="main-content"> // Changed from "dashboard-content"
                 <section class="topics-panel">
                     <h2>
-                        if let Some(device_id) = &*selected_device {
-                            {format!("Topics for {}", device_id)}
+                        if selected_device.is_some() {
+                            {"Topics"}
                         } else {
                             {"Select a device to view topics"}
                         }

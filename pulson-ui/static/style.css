@@ -8,12 +8,12 @@
 }
 
 body {
-    font-family: sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; /* Modern system font stack */
     margin: 0;
-    background-color: #3a3a40; /* Darker background with a slight red tint */
-    color: #e0e0e0; /* Lighter text color for better contrast on dark background */
-    display: flex; /* Ensure body takes full height */
-    min-height: 100vh; /* Ensure body takes full height */
+    background-color: #2a2a30;
+    color: #e0e0e0;
+    display: flex;
+    min-height: 100vh;
 }
 
 /* Login Form Styles */
@@ -22,70 +22,65 @@ body:has(.login-form) {
     height: 100vh;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #502a2a 0%, #3a3a40 100%); /* Darker red-tinted gradient */
+    background: #2a2a30; /* Flat dark background */
 }
 
 form {
-    background: #2c2c32; /* Darker form background */
-    padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); /* Increased shadow for depth */
+    background: #1c1c22; /* Darker, flat form background */
+    padding: 2.5rem; /* Slightly more padding */
+    border-radius: 8px; /* Less pronounced border-radius for flatter look */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); /* Softer shadow */
     width: 100%;
     max-width: 400px;
-    border: 1px solid #4a4a50; /* Darker border */
+    /* border: 1px solid rgba(235, 28, 36, 0.2); */ /* Removed border */
 }
 
 form h2 {
     margin-bottom: 1.5rem;
     text-align: center;
-    color: #f0f0f0; /* Slightly brighter for heading */
+    color: #f0f0f0;
     font-weight: 600;
 }
 
 form input {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.85rem; /* Slightly more padding */
     margin-bottom: 1rem;
-    border: 2px solid #5a5a60; /* Darker input border */
-    border-radius: 8px;
+    border: 1px solid #3a3a40; /* Neutral dark border */
+    border-radius: 4px; /* Less pronounced border-radius */
     font-size: 1rem;
-    transition: border-color 0.2s ease;
-    background: #4a4a50; /* Darker input background */
-    color: #d0d0d0; /* Lighter input text */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background: #25252b; /* Darker input background */
+    color: #d0d0d0;
 }
 
 form input:focus {
     outline: none;
-    border-color: #b74141; /* Red-tinted focus color */
-    box-shadow: 0 0 0 3px rgba(183, 65, 65, 0.2); /* Red-tinted focus shadow */
+    border-color: #eb1c24; /* Accent color focus */
+    box-shadow: 0 0 0 2px rgba(235, 28, 36, 0.2); /* Keep accent focus shadow, or use neutral e.g. rgba(80,80,90,0.3) */
 }
 
 form input::placeholder {
-    color: #a0a0a0; /* Lighter placeholder text */
+    color: #888888; /* Darker placeholder */
 }
 
 form button {
     width: 100%;
     padding: 0.875rem;
-    background: linear-gradient(135deg, #b74141 0%, #8f3030 100%); /* Red-tinted button gradient */
+    background: #eb1c24; /* Solid accent color */
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 4px; /* Less pronounced border-radius */
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition:
-        transform 0.2s ease,
-        box-shadow 0.2s ease;
+    transition: background-color 0.2s ease;
 }
 
 form button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(183, 65, 65, 0.5); /* Red-tinted hover shadow */
-}
-
-form button:active {
-    transform: translateY(0);
+    background-color: #c91820; /* Darker accent on hover */
+    transform: none; /* Remove transform for flatter feel */
+    box-shadow: none; /* Remove shadow for flatter feel */
 }
 
 /* Dashboard Layout */
@@ -158,7 +153,8 @@ form button:active {
 }
 
 .nav-button:hover {
-    background: #5a5a60; /* Darker hover */
+    background: #eb1c24; /* Accent color */
+    color: #ffffff;
     border-color: #7a7a80; /* Lighter hover border */
 }
 
@@ -181,16 +177,16 @@ form button:active {
 
 /* Sidebar Styles */
 .sidebar {
-    width: 300px; /* Slightly wider sidebar */
-    background-color: #1e1e24; /* Darker sidebar background */
-    color: #e0e0e0; /* Lighter text color for sidebar */
+    width: 300px;
+    background-color: #1c1c22;
+    color: #e0e0e0;
     padding: 25px;
     display: flex;
     flex-direction: column;
-    overflow-y: auto; /* Allow scrolling within the sidebar if content overflows */
-    height: 100%; /* Make sidebar take full height */
-    box-sizing: border-box; /* Include padding in width/height */
-    border-right: 1px solid #3a3a40; /* Separator line for sidebar */
+    overflow-y: auto;
+    height: 100%;
+    box-sizing: border-box;
+    border-right: 1px solid #25252b; /* Border color same as main content bg for subtle separation */
 }
 
 .sidebar-header {
@@ -199,8 +195,9 @@ form button:active {
 }
 
 .sidebar-header .nav-logo {
-    width: 75px; /* Increased logo size in sidebar */
-    margin-bottom: 15px;
+    width: 85px; /* Increased from 75px */
+    height: auto;
+    margin-bottom: 10px;
 }
 
 .sidebar-header h1 {
@@ -216,24 +213,30 @@ form button:active {
 
 .sidebar-nav {
     flex-grow: 1; /* Allow this section to take available space */
+    padding-top: 15px; /* Added for spacer */
+    border-top: 1px solid #25252b; /* Added for spacer, matches footer */
+    margin-top: 25px; /* Added to push it down from header, adjust as needed */
 }
 
 .sidebar-nav h2 {
-    font-size: 1.3em;
-    margin-top: 0;
-    margin-bottom: 12px;
-    color: #a0a0a0; /* Slightly muted heading color */
-    border-bottom: 1px solid #3a3a40; /* Separator line */
-    padding-bottom: 8px;
+    font-size: 1.1em;
+    margin-top: 0; /* Reset margin after adding padding to parent */
+    margin-bottom: 15px;
+    color: #eb1c24; /* Accent color for "Devices" title */
+    border-bottom: none; /* Remove border for a flatter look */
+    padding-bottom: 5px;
+    font-weight: 600; /* Make it bolder */
+    text-align: center; /* Centered Devices title */
 }
 
 .sidebar-footer {
-    margin-top: auto; /* Push footer to the bottom */
-    padding-top: 15px; /* Reduced padding to accommodate menu */
-    border-top: 1px solid #3a3a40; /* Separator line */
-    position: relative; /* For positioning the popup */
+    margin-top: auto;
+    padding-top: 15px;
+    border-top: 1px solid #25252b; /* Subtle separator */
+    position: relative;
 }
 
+/* User Info Styles (Sidebar Footer) */
 .user-info-container {
     /* Removed margin-bottom, will be handled by individual elements or the popup */
     text-align: center;
@@ -242,17 +245,17 @@ form button:active {
 
 .user-menu-toggle {
     cursor: pointer;
-    padding: 8px 12px;
-    border-radius: 5px;
+    padding: 10px 12px; /* Increased padding */
+    border-radius: 4px; /* Flatter radius */
     transition: background-color 0.2s ease;
-    display: flex; /* To align items in a row */
-    align-items: center; /* Vertically center items */
-    justify-content: center; /* Center content */
-    gap: 8px; /* Space between username, role, and arrow */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
 .user-menu-toggle:hover {
-    background-color: #333338;
+    background-color: #25252b; /* Darker hover, consistent with other elements */
 }
 
 .user-info-container .username {
@@ -273,17 +276,16 @@ form button:active {
 
 .user-menu-popup {
     position: absolute;
-    bottom: 100%; /* Position above the toggle */
+    bottom: calc(100% + 5px); /* Add small gap */
     left: 50%;
     transform: translateX(-50%);
-    background-color: #1e1e24; /* Dark background for popup */
-    border: 1px solid #4a4a50;
-    border-radius: 6px;
-    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.3); /* Shadow for popup */
+    background-color: #25252b; /* Consistent dark background */
+    border: 1px solid #3a3a40; /* Neutral dark border */
+    border-radius: 4px; /* Flatter radius */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); /* Softer shadow */
     z-index: 100;
-    width: 200px; /* Adjust width as needed */
-    padding: 8px;
-    margin-bottom: 8px; /* Space between toggle and popup */
+    width: 180px; /* Slightly narrower */
+    padding: 5px;
 }
 
 .user-menu-popup-item {
@@ -295,13 +297,14 @@ form button:active {
     color: #e0e0e0;
     text-align: left;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 3px; /* Subtle radius */
     font-size: 0.95em;
     transition: background-color 0.2s ease;
 }
 
 .user-menu-popup-item:hover {
-    background-color: #3a3a40;
+    background-color: #eb1c24;
+    color: #ffffff;
 }
 
 .user-menu-popup-item.unimplemented {
@@ -321,36 +324,47 @@ form button:active {
 .sidebar .nav-button {
     display: block;
     width: 100%;
-    padding: 12px;
-    margin-bottom: 10px;
-    background-color: #3a3a40; /* Button background */
-    color: #e0e0e0; /* Button text color */
-    border: 1px solid #5a5a60; /* Subtle border for buttons */
-    border-radius: 5px;
+    padding: 10px 12px; /* Adjusted padding */
+    margin-bottom: 8px; /* Adjusted margin */
+    background-color: #25252b; /* Darker, flatter button */
+    color: #e0e0e0;
+    border: 1px solid #3a3a40; /* Neutral dark border */
+    border-radius: 4px; /* Flatter radius */
     cursor: pointer;
     text-align: left;
-    font-size: 1em;
+    font-size: 0.95em; /* Slightly smaller font */
 }
 
 .sidebar .nav-button:hover {
-    background-color: #4a4a50; /* Button hover background */
-    border-color: #7a7a80;
+    background-color: #333338; /* Consistent hover */
+    border-color: #4a4a50;
 }
 
 .sidebar .nav-button.active {
-    background-color: #b74141; /* Red-tinted active button */
-    border-color: #b74141;
+    background-color: #eb1c24; /* Accent color */
+    border-color: #eb1c24;
     color: #fff;
 }
 
 /* Main Content Styles */
 .main-content {
-    flex-grow: 1; /* Allow main content to take remaining space */
-    padding: 25px;
-    overflow-y: auto; /* Allow scrolling for main content */
-    height: 100%; /* Make main content take full height */
-    box-sizing: border-box; /* Include padding in width/height */
-    background-color: #2c2c32; /* Darker content area background */
+    flex-grow: 1;
+    padding: 25px; /* Increased padding */
+    overflow-y: auto;
+    height: 100%;
+    box-sizing: border-box;
+    background-color: #25252b;
+    border-radius: 0; /* Remove border-radius for a more integrated look with the sidebar */
+    box-shadow: none; /* Remove shadow for a flatter look */
+}
+
+.main-content h2 { /* Styling for "Topics" title */
+    font-size: 1.2em; /* Consistent with "Devices" */
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #eb1c24; /* Accent color */
+    padding-bottom: 5px;
+    font-weight: 600; /* Make it bolder */
 }
 
 /* Device List Styles (Sidebar) */
@@ -361,33 +375,24 @@ form button:active {
 }
 
 .device-item {
-    padding: 14px 12px;
-    border-bottom: 1px solid #3a3a40; /* Separator for items */
+    padding: 12px 15px;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease; /* Added border-color to transition */
     border-radius: 4px;
-    margin-bottom: 6px; /* Spacing between items */
-}
-
-.device-item:last-child {
-    border-bottom: none;
+    margin-bottom: 4px;
+    background-color: #1c1c22; /* Explicit background color */
+    border: 1px solid transparent; /* Transparent border by default */
 }
 
 .device-item:hover {
-    background-color: #333338;
+    background-color: #25252b;
+    border-color: #eb1c24; /* Accent color border on hover */
 }
 
 .device-item.selected {
-    background-color: #b74141; /* Red-tinted highlight for selected device */
-    color: #fff;
+    background-color: #eb1c24;
+    color: #ffffff;
 }
-
-.device-item.selected .device-id,
-.device-item.selected .last-seen,
-.device-item.selected .device-status {
-    color: #fff;
-}
-
 
 .device-header {
     display: flex;
@@ -396,55 +401,24 @@ form button:active {
     margin-bottom: 6px;
 }
 
-.device-id {
-    font-weight: bold;
-    font-size: 1.1em;
-    color: #e5e5e5;
-}
-
-.device-status {
-    font-size: 0.9em;
-    padding: 3px 6px;
-    border-radius: 3px;
-    font-weight: bold;
-}
-
-.device-info .last-seen {
-    font-size: 0.8em;
-    color: #a0a0a0; /* Lighter color for last seen in sidebar */
-}
-
-/* Status colors for devices in sidebar */
-.device-item.online .device-status { color: #2ecc71; }
-.device-item.warning .device-status { color: #f39c12; }
-.device-item.offline .device-status { color: #e74c3c; }
-.device-item.unknown .device-status { color: #95a5a6; }
-
-.device-item.selected.online .device-status,
-.device-item.selected.warning .device-status,
-.device-item.selected.offline .device-status,
-.device-item.selected.unknown .device-status {
-    color: #fff; /* Ensure status text is white when selected */
-}
-
-
 /* Topics Panel Styles (Main Content) */
 .topics-panel {
-    background-color: #1e1e24; /* Darker panel background */
-    padding: 25px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
-    margin-bottom: 25px;
-    border: 1px solid #3a3a40;
+    background-color: transparent; /* Removed panel box */
+    padding: 0; /* Rely on main-content padding */
+    border-radius: 0;
+    box-shadow: none;
+    margin-bottom: 25px; /* Keep for spacing below topics section */
+    border: none;
 }
 
 .topics-panel h2 {
     margin-top: 0;
-    font-size: 1.7em;
-    color: #f0f0f0;
-    border-bottom: 1px solid #3a3a40;
-    padding-bottom: 12px;
-    margin-bottom: 25px;
+    font-size: 1.1em;
+    color: #eb1c24;
+    border-bottom: none;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+    font-weight: 600;
 }
 
 .topic-list {
@@ -456,71 +430,57 @@ form button:active {
 }
 
 .topic-item {
-    background-color: #2c2c32; /* Darker topic item background */
-    padding: 18px;
-    border: 1px solid #3a3a40;
-    border-radius: 8px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    position: relative; /* For pseudo-element positioning */
+    background-color: #1c1c22; /* Darker background for topic items */
+    padding: 12px 15px; /* Adjusted padding */
+    border-radius: 4px; /* Flatter radius */
+    /* border: 1px solid rgba(235, 28, 36, 0.2); */ /* Removed border */
+    transition: background-color 0.2s ease, border-color 0.2s ease; /* Added border-color to transition */
+    border: 1px solid transparent; /* Transparent border by default */
 }
 
 .topic-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    /* border-color: rgba(235, 28, 36, 0.4); */ /* Removed border hover */
+    background-color: #222228; /* Hover background color */
+    border-color: #eb1c24; /* Accent color border on hover */
 }
 
-.topic-item:active {
-    transform: translateY(0);
+.topic-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
 }
 
-.topic-item.selected {
-    background-color: #b74141; /* Red-tinted background for selected topic */
-    color: #fff;
-    box-shadow: 0 0 0 3px rgba(183, 65, 65, 0.5); /* Red-tinted shadow */
+.topic-name {
+    font-weight: bold;
+    font-size: 1.1em;
+    color: #e5e5e5;
 }
 
-.topic-item.selected:hover {
-    transform: none; /* Prevent movement on hover when selected */
+.topic-info .last-seen {
+    font-size: 0.8em;
+    color: #a0a0a0;
 }
 
 .topic-item .topic-status {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    padding: 4px 8px;
-    border-radius: 12px;
+    /* position: absolute; */ /* Removed absolute positioning */
+    /* top: 12px; */
+    /* right: 12px; */
+    padding: 3px 8px; /* Consistent with .device-status */
+    border-radius: 12px; /* Pill shape */
     font-size: 0.75em;
     font-weight: bold;
     text-transform: uppercase;
-}
-
-.topic-item .topic-status.online {
-    background-color: #2ecc71;
-    color: #fff;
-}
-
-.topic-item .topic-status.offline {
-    background-color: #e74c3c;
-    color: #fff;
-}
-
-.topic-item .topic-status.warning {
-    background-color: #f39c12;
-    color: #fff;
-}
-
-.topic-item .topic-status.unknown {
-    background-color: #95a5a6;
-    color: #fff;
+    letter-spacing: 0.5px; /* Added to match general status */
 }
 
 /* Log Viewer Styles (Main Content) */
 .log-viewer {
-    background-color: #1e1e24; /* Darker background for log viewer */
+    background-color: #1e1e24;
     padding: 25px;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
-    border: 1px solid #3a3a40;
+    /* border: 1px solid rgba(235, 28, 36, 0.2); */ /* Removed border */
     margin-bottom: 25px;
     overflow-x: auto; /* Allow horizontal scrolling */
 }
@@ -536,14 +496,16 @@ form button:active {
 
 .log-entry {
     padding: 12px 10px;
-    border-bottom: 1px solid #3a3a40;
+    /* border-bottom: 1px solid rgba(235, 28, 36, 0.15); */ /* Removed border */
     display: grid;
     grid-template-columns: 1fr 2fr 1fr; /* Three columns layout */
     gap: 10px;
+    margin-bottom: 8px; /* Added margin for separation */
 }
 
 .log-entry:last-child {
-    border-bottom: none;
+    /* border-bottom: none; */ /* No longer needed */
+    margin-bottom: 0;
 }
 
 .log-entry .log-time {
@@ -611,7 +573,8 @@ form button:active {
 }
 
 .user-menu-item:hover {
-    background-color: #3a3a40;
+    background-color: #eb1c24; /* Accent color */
+    color: #ffffff;
 }
 
 .user-menu-item.unimplemented {
@@ -625,4 +588,75 @@ form button:active {
 .user-menu-item small {
     font-size: 0.8em;
     color: #777777;
+}
+
+/* Loading, Error, and Empty States */
+.loading, .error, .device-list-empty, .topic-list-empty {
+    padding: 15px;
+    text-align: center;
+    color: #a0a0a0;
+    background-color: #1c1c22;
+    border-radius: 4px;
+    margin: 10px 0;
+    /* border: 1px solid rgba(235, 28, 36, 0.2); */ /* Removed border */
+}
+
+.error {
+    color: #ff6b6b;
+    background-color: rgba(235, 28, 36, 0.1); /* Red-tinted background */
+    /* border-color: rgba(235, 28, 36, 0.4); */ /* Removed border */
+}
+
+/* Status Indicator Refinements */
+.device-status,
+.topic-status {
+    padding: 3px 8px;
+    border-radius: 12px; /* Pill shape */
+    font-size: 0.75em;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.device-status.online,
+.topic-status.online {
+    background-color: rgba(39, 174, 96, 0.2); /* Green with transparency */
+    color: #27ae60;
+}
+
+.device-status.warning,
+.topic-status.warning {
+    background-color: rgba(243, 156, 18, 0.2); /* Yellow/Orange with transparency */
+    color: #f39c12;
+}
+
+.device-status.offline,
+.topic-status.offline {
+    background-color: rgba(231, 76, 60, 0.2); /* Red with transparency */
+    color: #e74c3c;
+}
+
+.device-status.unknown,
+.topic-status.unknown {
+    background-color: rgba(128, 128, 128, 0.2); /* Grey with transparency */
+    color: #808080;
+}
+
+/* Ensure status text is white when parent item is selected */
+.device-item.selected .device-status,
+.topic-item.selected .topic-status {
+    color: #fff;
+}
+
+/* General Button Flatness */
+button {
+    box-shadow: none !important; /* Force no shadow on buttons for flat UI */
+    text-shadow: none !important; /* Force no text shadow */
+}
+
+/* Ensure specific buttons like user menu items also get flat treatment */
+.user-menu-popup-item:hover {
+    background-color: #eb1c24;
+    color: #ffffff;
+    /* box-shadow: none !important; /* Already flat, but for emphasis */
 }
