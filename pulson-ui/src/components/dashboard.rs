@@ -533,15 +533,6 @@ fn get_device_status_class(last_seen: &str) -> &'static str {
     }
 }
 
-fn get_device_status(last_seen: &str) -> &'static str {
-    match get_device_status_class(last_seen) {
-        "online" => "●",
-        "warning" => "⚠",
-        "offline" => "●",
-        _ => "?",
-    }
-}
-
 fn get_topic_status_class(last_seen: &str) -> &'static str {
     if let Ok(timestamp) = parse_timestamp(last_seen) {
         let now = Date::now();
@@ -557,16 +548,6 @@ fn get_topic_status_class(last_seen: &str) -> &'static str {
         }
     } else {
         "unknown"
-    }
-}
-
-fn get_topic_status(last_seen: &str) -> &'static str {
-    match get_topic_status_class(last_seen) {
-        "active" => "🟢",
-        "recent" => "🟡",
-        "stale" => "🟠",
-        "inactive" => "🔴",
-        _ => "⚪",
     }
 }
 

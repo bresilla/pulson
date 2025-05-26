@@ -451,15 +451,9 @@ form button:hover {
 }
 
 .topic-item .topic-status {
-    /* position: absolute; */ /* Removed absolute positioning */
-    /* top: 12px; */
-    /* right: 12px; */
-    padding: 3px 8px; /* Consistent with .device-status */
-    border-radius: 12px; /* Pill shape */
-    font-size: 0.75em;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 0.5px; /* Added to match general status */
+    margin-left: auto; /* Push status indicator to the end of the flex line */
+    /* Conflicting properties like padding, text-specific styles, and pill-shape border-radius are removed 
+       to allow base .topic-status styles (width, height, border-radius: 50%) to apply correctly. */
 }
 
 .topic-item.selected {
