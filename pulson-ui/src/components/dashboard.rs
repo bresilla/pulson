@@ -510,16 +510,12 @@ fn get_topic_status_class(last_seen: &str) -> &'static str {
         let diff_ms = now - timestamp;
         let diff_seconds = diff_ms / 1000.0;
 
-        if diff_seconds < 30.0 {
-            "active"
-        } else if diff_seconds < 300.0 {
-            // 5 minutes
-            "recent"
-        } else if diff_seconds < 3600.0 {
-            // 1 hour
-            "stale"
-        } else {
-            "inactive"
+        if diff_seconds < 30.0 { // e.g., less than 30 seconds
+            "online"
+        } else if diff_seconds < 300.0 { // e.g., less than 5 minutes
+            "warning"
+        } else { // Older than 5 minutes
+            "offline"
         }
     } else {
         "unknown"

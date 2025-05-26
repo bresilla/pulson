@@ -390,8 +390,14 @@ form button:hover {
 }
 
 .device-item.selected {
-    background-color: #eb1c24;
-    color: #ffffff;
+    background-color: #1c1c22; /* Keep original background */
+    border-color: #eb1c24; /* Accent color border */
+    color: #ffffff; /* Keep text color white or as needed */
+}
+
+.device-item.selected .device-id,
+.device-item.selected .last-seen {
+    color: #ffffff; /* Ensure text within selected item remains readable */
 }
 
 .device-header {
@@ -691,11 +697,13 @@ form button:hover {
 
 /* Ensure status text is white when parent item is selected */
 /* This rule might not be needed anymore if there's no text, but keeping for ::after color if selected state changes it */
+/*
 .device-item.selected .device-status::after,
 .topic-item.selected .topic-status::after {
     /* If selected state should change inner circle color, define here. */
     /* For now, it inherits the standard status color. */
-}
+/*}
+*/
 
 @keyframes pulse-outer {
     0%, 100% {
