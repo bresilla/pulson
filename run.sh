@@ -7,6 +7,10 @@ build() {
     cargo build --release
 }
 
+# @cmd the file
+run() {
+    pulson serve --webui --root-pass "superdupersecret"
+}
 
 # @cmd mark as releaser
 # @alias r

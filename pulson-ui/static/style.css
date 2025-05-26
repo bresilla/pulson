@@ -450,24 +450,6 @@ form button:hover {
     border-color: #eb1c24; /* Accent color border on hover */
 }
 
-.topic-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 6px;
-}
-
-.topic-name {
-    font-weight: bold;
-    font-size: 1.1em;
-    color: #e5e5e5;
-}
-
-.topic-info .last-seen {
-    font-size: 0.8em;
-    color: #a0a0a0;
-}
-
 .topic-item .topic-status {
     /* position: absolute; */ /* Removed absolute positioning */
     /* top: 12px; */
@@ -479,6 +461,48 @@ form button:hover {
     text-transform: uppercase;
     letter-spacing: 0.5px; /* Added to match general status */
 }
+
+.topic-item.selected {
+    /* Add styles for selected topic if different from default expansion, e.g., slightly different background */
+    /* background-color: #202025; */ /* Optional: slightly different bg for selected topic */
+    /* border-left: 3px solid #eb1c24; */ /* Example: Accent border on the left when selected */
+}
+
+.topic-details {
+    padding: 15px;
+    margin-top: 10px;
+    background-color: #222228; /* Slightly different background for details */
+    border-radius: 4px;
+    border-top: 1px solid #3a3a40; /* Separator line */
+}
+
+.topic-details h4 {
+    color: #e0e0e0;
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 0.95em;
+}
+
+.topic-details .placeholder-graph {
+    background-color: #2a2a30;
+    padding: 10px;
+    border-radius: 3px;
+    margin-bottom: 10px;
+    font-family: monospace;
+    color: #a0a0a0;
+}
+
+.topic-details ul {
+    list-style-type: none;
+    padding-left: 0;
+    font-size: 0.9em;
+    color: #c0c0c0;
+}
+
+.topic-details ul li {
+    margin-bottom: 4px;
+}
+
 
 /* Log Viewer Styles (Main Content) */
 .log-viewer {

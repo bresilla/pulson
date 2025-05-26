@@ -30,6 +30,7 @@ pub fn dashboard() -> Html {
     let devices = use_state(Vec::<DeviceInfo>::new);
     let selected_device = use_state(|| None::<String>);
     let topics = use_state(Vec::<TopicInfo>::new);
+    let selected_topic = use_state(|| None::<String>); // New state for selected topic
     let loading = use_state(|| true);
     let error = use_state(|| None::<String>);
     let auto_refresh = use_state(|| true);
@@ -243,6 +244,19 @@ pub fn dashboard() -> Html {
         })
     };
 
+    // Callback to toggle selected topic
+    let on_topic_select = {
+        let selected_topic = selected_topic.clone();
+        Callback::from(move |topic_name: String| {
+            let current_selected = (*selected_topic).clone();
+            if current_selected == Some(topic_name.clone()) {
+                selected_topic.set(None); // Deselect if already selected
+            } else {
+                selected_topic.set(Some(topic_name));
+            }
+        })
+    };
+
     html! {
         <div class="dashboard-container">
             <aside class="sidebar">
@@ -387,8 +401,17 @@ pub fn dashboard() -> Html {
                             <div class="topic-list">
                                 {for topics.iter().map(|topic| {
                                     let status_class = get_topic_status_class(&topic.last_seen);
+                                    let topic_name = topic.topic.clone();
+                                    let is_topic_selected = selected_topic.as_ref() == Some(&topic_name);
+                                    let on_click_topic = {
+                                        let topic_name = topic_name.clone();
+                                        let on_topic_select = on_topic_select.clone();
+                                        Callback::from(move |_| {
+                                            on_topic_select.emit(topic_name.clone());
+                                        })
+                                    };
                                     html! {
-                                        <div class={classes!("topic-item", status_class)}>
+                                        <div class={classes!("topic-item", status_class, is_topic_selected.then(|| "selected"))} onclick={on_click_topic}>
                                             <div class="topic-header">
                                                 <span class="topic-name">{&topic.topic}</span>
                                                 <span class={classes!("topic-status", status_class)}>
@@ -403,6 +426,21 @@ pub fn dashboard() -> Html {
                                                     {format_exact_time(&topic.last_seen)}
                                                 </small>
                                             </div>
+                                            if is_topic_selected {
+                                                <div class="topic-details">
+                                                    <h4>{"Last 12 Hours Activity (Placeholder)"}</h4>
+                                                    <div class="placeholder-graph">
+                                                        <p>{"Graph showing on/off periods will be here."}</p>
+                                                        <p>{"[||||| | | ||||||||| | |||| | |||||||]"}</p>
+                                                    </div>
+                                                    <h4>{"Other Statistics (Placeholder)"}</h4>
+                                                    <ul>
+                                                        <li>{"Total Pings: N/A"}</li>
+                                                        <li>{"Average Uptime: N/A"}</li>
+                                                        <li>{"Last Downtime: N/A"}</li>
+                                                    </ul>
+                                                </div>
+                                            }
                                         </div>
                                     }
                                 })}
