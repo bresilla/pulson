@@ -298,7 +298,7 @@ pub async fn run(
 
     if watch {
         // Watch mode - continuously update
-        println!("{}", "🔄 Watch mode enabled. Press Ctrl+C to exit...".bright_cyan().bold());
+        println!("{}", "Watch mode enabled. Press Ctrl+C to exit...".bright_cyan().bold());
         loop {
             // Clear screen (ANSI escape code)
             print!("\x1B[2J\x1B[1;1H");
@@ -445,6 +445,5 @@ async fn run_single_fetch(
             }
         }
     }
-
     Ok(())
 }
