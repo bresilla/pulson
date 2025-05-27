@@ -67,7 +67,7 @@ pub fn pulse_visualization(props: &PulseVisualizationProps) -> Html {
             let topic = topic.clone();
             let time_range = (*selected_time_range).clone();
             let pulse_history = pulse_history.clone();
-            let loading = loading.clone();
+            let _loading = loading.clone();
             let error = error.clone();
 
             spawn_local(async move {

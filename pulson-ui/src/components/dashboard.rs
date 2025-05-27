@@ -7,6 +7,7 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
 use super::pulse_visualization::PulseVisualization;
+use super::inline_map::InlineMap;
 
 #[derive(Clone, PartialEq, Deserialize)]
 pub struct DeviceInfo {
@@ -41,6 +42,8 @@ pub fn dashboard() -> Html {
     let navigator = use_navigator().unwrap();
     let user_menu_visible = use_state(|| false);
     let user_data = use_state(|| None::<UserData>);
+    
+    let main_content_ref = use_node_ref();
 
     // Check if user is authenticated
     let token = LocalStorage::get::<String>("pulson_token").ok();
@@ -365,7 +368,7 @@ pub fn dashboard() -> Html {
                 </div>
             </aside>
 
-            <main class="main-content"> // Changed from "dashboard-content"
+            <main class="main-content" ref={main_content_ref}>                
                 <section class="topics-panel">
                     <h2>
                         if selected_device.is_some() {
@@ -425,6 +428,16 @@ pub fn dashboard() -> Html {
                                                         <PulseVisualization
                                                             device_id={device_id_for_pulse}
                                                             topic={Some(topic_name.clone())}
+                                                        />
+                                                    } else if topic.data_type == "array" && (
+                                                        topic_name.to_lowercase().contains("location") ||
+                                                        topic_name.to_lowercase().contains("coordinates") ||
+                                                        topic_name.to_lowercase().contains("gps") ||
+                                                        topic_name.to_lowercase().contains("position")
+                                                    ) {
+                                                        <InlineMap
+                                                            device_id={device_id_for_pulse}
+                                                            topic={topic_name.clone()}
                                                         />
                                                     } else {
                                                         <div class="unimplemented-message">

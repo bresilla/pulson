@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WASM Map Test</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="/static/style.css" />
+    <style>
+        .test-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .map-container {
+            margin: 20px 0;
+            border: 1px solid #ccc;
+        }
+        #native-map, #wasm-test {
+            height: 300px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Map Functionality Test</h1>
+        
+        <h2>1. Native JavaScript Leaflet Map</h2>
+        <div class="map-container">
+            <div id="native-map"></div>
+        </div>
+        
+        <h2>2. Simulated WASM Test</h2>
+        <div class="map-container">
+            <div id="wasm-test" class="inline-map"></div>
+        </div>
+        
+        <div id="debug-output"></div>
+    </div>
+
+    <script>
+        const debugOutput = document.getElementById('debug-output');
+        function log(msg) {
+            console.log(msg);
+            debugOutput.innerHTML += '<p>' + msg + '</p>';
+        }
+        
+        // Test 1: Native JavaScript map
+        log("Creating native JavaScript map...");
+        try {
+            const nativeMap = L.map('native-map').setView([40.7128, -74.006], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(nativeMap);
+            
+            L.circleMarker([40.7128, -74.006], {
+                color: '#22c55e',
+                fillColor: '#22c55e',
+                fillOpacity: 0.8,
+                radius: 8,
+                weight: 2
+            }).addTo(nativeMap).bindPopup("NYC Test");
+            
+            log("✓ Native map created successfully");
+        } catch (error) {
+            log("✗ Native map failed: " + error.message);
+        }
+        
+        // Test 2: Simulate WASM approach
+        log("Testing WASM-style map creation...");
+        try {
+            const wasmTestDiv = document.getElementById('wasm-test');
+            wasmTestDiv.innerHTML = ''; // Clear like WASM does
+            
+            // Add the leaflet-static-map class like WASM does
+            wasmTestDiv.classList.add('leaflet-static-map');
+            
+            const wasmMap = L.map(wasmTestDiv, { zoom: 13 });
+            
+            const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            });
+            tileLayer.addTo(wasmMap);
+            
+            wasmMap.setView([40.7128, -74.006], 13);
+            
+            L.circleMarker([40.7128, -74.006], {
+                color: '#ef4444',
+                fillColor: '#ef4444',
+                fillOpacity: 0.8,
+                radius: 8,
+                weight: 2
+            }).addTo(wasmMap).bindPopup("WASM-style Test");
+            
+            log("✓ WASM-style map created successfully");
+        } catch (error) {
+            log("✗ WASM-style map failed: " + error.message);
+        }
+    </script>
+</body>
+</html>

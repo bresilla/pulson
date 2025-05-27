@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Map Test</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map {
+            width: 100%;
+            height: 400px;
+            background-color: #25252b;
+        }
+    </style>
+</head>
+<body>
+    <h1>Leaflet Map Test</h1>
+    <div id="map"></div>
+    
+    <script>
+        console.log("Starting map test...");
+        console.log("Leaflet version:", L.version);
+        
+        // Create map with basic options
+        const map = L.map('map', {
+            zoom: 13,
+            zoomControl: false,
+            attributionControl: false
+        });
+        
+        console.log("Map created:", map);
+        
+        // Add tile layer
+        const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        });
+        
+        console.log("Tile layer created:", tileLayer);
+        
+        tileLayer.addTo(map);
+        console.log("Tile layer added to map");
+        
+        // Set view to NYC
+        map.setView([40.7128, -74.006], 13);
+        console.log("Map view set to NYC");
+        
+        // Add a marker
+        const marker = L.circleMarker([40.7128, -74.006], {
+            color: '#22c55e',
+            fillColor: '#22c55e',
+            fillOpacity: 0.8,
+            radius: 8,
+            weight: 2
+        }).addTo(map);
+        
+        console.log("Marker added:", marker);
+        
+        marker.bindPopup("<b>Test Location</b><br>NYC Coordinates");
+        
+        console.log("Map test completed successfully");
+    </script>
+</body>
+</html>
