@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.1] - 2025-05-27
+## [1.0.2] - 2025-05-27
 
 ### <!-- 0 -->⛰️  Features
 
@@ -78,6 +78,7 @@
 
 ### <!-- 7 -->⚙️ Miscellaneous Tasks
 
+- Update default branch to develop
 - Remove dead dependencies argon2 and limbo
 - Remove codegrab output file
 - Refactor and configure WebAssembly build process
