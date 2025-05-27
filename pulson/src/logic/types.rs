@@ -32,4 +32,5 @@ pub struct TopicInfo {
     pub topic: String,
     pub last_seen: DateTime<Utc>,
     pub status: TopicStatus,
+    pub data_type: String, // Single data type: ping, event, value, array, or bytes
 }

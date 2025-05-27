@@ -96,8 +96,8 @@ The UI communicates with the Pulson server via REST API:
 
 - `POST /account/login` - User authentication
 - `GET /devices` - List all devices with last seen timestamps
-- `GET /devices/{id}` - Get topics for a specific device
-- `POST /ping` - Send a ping for a device/topic
+- `GET /devices/{id}` - Get topics for a specific device with data types
+- `POST /api/pulse` - Send unified pulse with optional structured data
 
 Authentication is handled via Bearer tokens stored in browser localStorage.
 
@@ -137,7 +137,7 @@ The UI uses a modern design system with:
 
 ## Future Enhancements
 
-- [ ] Ping form for sending test pings
+- [ ] Pulse form for sending test pulses with structured data
 - [ ] Real-time WebSocket updates
 - [ ] Device grouping and filtering
 - [ ] Historical data visualization

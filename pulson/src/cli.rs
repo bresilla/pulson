@@ -1,4 +1,15 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, ValueEnum, Subcommand};
+
+#[derive(Clone, ValueEnum)]
+pub enum StatusFilter {
+    Online,
+    Warning,
+    Offline,
+    Active,
+    Recent,
+    Stale,
+    Inactive,
+}
 
 #[derive(Clone, ValueEnum)]
 pub enum OutputFormat {
@@ -14,17 +25,6 @@ pub enum SortBy {
     Status,
     TopicCount,
     PingCount,
-}
-
-#[derive(Clone, ValueEnum)]
-pub enum StatusFilter {
-    Online,
-    Warning,
-    Offline,
-    Active,
-    Recent,
-    Stale,
-    Inactive,
 }
 
 /// realtime system/robot monitoring and tracing
@@ -79,12 +79,17 @@ pub enum Commands {
         action: DeviceAction,
     },
 
-    /// Send a ping for a given device_id and topic
-    Ping {
+    /// Send a unified pulse with optional map-based data payload  
+    Pulse {
+        /// Device identifier
         #[arg(short = 'd', long)]
         device_id: String,
+        /// Topic for the pulse
         #[arg(short = 't', long)]
         topic: String,
+        /// Optional map-based data payload in JSON format (e.g., {"map":[lat,lon,alt]}, {"sensor":val}, {"ping":null})
+        #[arg(value_name = "JSON_DATA")]
+        data: Option<String>,
     },
 
     /// User account management (register, login, logout, delete, list)
