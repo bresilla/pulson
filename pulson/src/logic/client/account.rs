@@ -117,7 +117,7 @@ pub async fn delete(host: String, port: u16, target: String) -> anyhow::Result<(
             return Ok(());
         }
     };
-    let url = format!("http://{}:{}/account/{}", host, port, target);
+    let url = format!("http://{}:{}/api/account/{}", host, port, target);
     let resp = Client::new().delete(&url).bearer_auth(token).send().await?;
     if resp.status().is_success() {
         println!("✓ Deleted user `{}`", target);
@@ -137,7 +137,7 @@ pub async fn list_users(host: String, port: u16) -> anyhow::Result<()> {
         }
     };
 
-    let url = format!("http://{}:{}/account/users", host, port);
+    let url = format!("http://{}:{}/api/account/users", host, port);
     let resp = Client::new().get(&url).bearer_auth(token).send().await?;
 
     if !resp.status().is_success() {

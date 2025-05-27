@@ -22,7 +22,7 @@ pub fn ping(
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone());
     warp::post()
-        .and(warp::path("ping"))
+        .and(warp::path!("api" / "ping"))
         .and(auth)
         .and(warp_body_json())
         .map(move |username: String, payload: PingPayload| {
@@ -58,7 +58,7 @@ pub fn list_all(
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone());
     warp::get()
-        .and(warp::path("devices"))
+        .and(warp::path!("api" / "devices"))
         .and(warp::path::end())
         .and(auth)
         .map(move |username: String| {
@@ -78,8 +78,7 @@ pub fn list_one(
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone());
     warp::get()
-        .and(warp::path("devices"))
-        .and(warp::path::param::<String>())
+        .and(warp::path!("api" / "devices" / String))
         .and(auth)
         .map(move |device_id: String, username: String| {
             // Include username in device_id to get user-specific device
@@ -112,8 +111,7 @@ pub fn delete_device(
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone());
     warp::post()
-        .and(warp::path("device"))
-        .and(warp::path("delete"))
+        .and(warp::path!("api" / "device" / "delete"))
         .and(warp::path::end())
         .and(auth)
         .and(warp_body_json())

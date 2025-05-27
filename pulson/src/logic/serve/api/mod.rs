@@ -26,7 +26,6 @@ pub fn api_routes(
     let lo = device_routes::list_one(db.clone());
     let dd = device_routes::delete_device(db.clone()); // Add delete_device route
 
-    // Prefix all routes with /api
-    warp::path("api")
-        .and(reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(lo).or(la).or(dd))
+    // Routes already include /api prefix in their individual definitions
+    reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(lo).or(la).or(dd)
 }
