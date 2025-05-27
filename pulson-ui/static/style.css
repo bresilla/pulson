@@ -2,7 +2,13 @@
 
 /* CSS Variables */
 :root {
-    --accent-color: #eb1c24;
+    --accent-color: #eb1c24; /* Static default red accent */
+    --status-color-online: rgb(39, 174, 96);
+    --status-color-warning: rgb(243, 156, 18);
+    --status-color-offline: rgb(231, 76, 60);
+    --status-color-unknown: rgb(128, 128, 128);
+
+    /* --accent-color-default: #eb1c24; */ /* No longer needed if --accent-color is static */
     --border-color: #3a3a40;
 }
 
@@ -62,8 +68,8 @@ form input {
 
 form input:focus {
     outline: none;
-    border-color: #eb1c24; /* Accent color focus */
-    box-shadow: 0 0 0 2px rgba(235, 28, 36, 0.2); /* Keep accent focus shadow, or use neutral e.g. rgba(80,80,90,0.3) */
+    border-color: #eb1c24; /* Static accent color focus */
+    box-shadow: 0 0 0 2px rgba(235, 28, 36, 0.2); /* Static accent focus shadow */
 }
 
 form input::placeholder {
@@ -73,7 +79,7 @@ form input::placeholder {
 form button {
     width: 100%;
     padding: 0.875rem;
-    background: #eb1c24; /* Solid accent color */
+    background: #eb1c24; /* Static solid accent color */
     color: white;
     border: none;
     border-radius: 4px; /* Less pronounced border-radius */
@@ -84,7 +90,7 @@ form button {
 }
 
 form button:hover {
-    background-color: #c91820; /* Darker accent on hover */
+    background-color: #c91820; /* Darker static accent on hover */
     transform: none; /* Remove transform for flatter feel */
     box-shadow: none; /* Remove shadow for flatter feel */
 }
@@ -159,9 +165,9 @@ form button:hover {
 }
 
 .nav-button:hover {
-    background: #eb1c24; /* Accent color */
+    background: #eb1c24; /* Static accent color */
     color: #ffffff;
-    border-color: #7a7a80; /* Lighter hover border */
+    border-color: #eb1c24; /* Static accent color for border */
 }
 
 .nav-button.active {
@@ -228,7 +234,7 @@ form button:hover {
     font-size: 1.1em;
     margin-top: 0; /* Reset margin after adding padding to parent */
     margin-bottom: 15px;
-    color: #eb1c24; /* Accent color for "Devices" title */
+    color: #eb1c24; /* Static accent color for "Devices" title */
     border-bottom: none; /* Remove border for a flatter look */
     padding-bottom: 5px;
     font-weight: 600; /* Make it bolder */
@@ -250,7 +256,7 @@ form button:hover {
 .config-section h3 {
     font-size: 1rem;
     margin-bottom: 12px;
-    color: #eb1c24;
+    color: #eb1c24; /* Static accent color */
     font-weight: 600;
     text-align: center;
 }
@@ -301,12 +307,12 @@ form button:hover {
     cursor: pointer;
     border-radius: 4px;
     transition: background-color 0.3s, border-color 0.3s;
-    border: 1px solid var(--accent-color); /* Accent color border */
-    background-color: var(--accent-color); /* Accent color background */
+    border: 1px solid #eb1c24; /* Static accent color border */
+    background-color: #eb1c24; /* Static accent color background */
 }
 
 .user-menu-toggle:hover {
-    background-color: #d91820; /* Slightly darker accent on hover */
+    background-color: #d91820; /* Slightly darker static accent on hover */
     border-color: #d91820;
 }
 
@@ -377,7 +383,7 @@ form button:hover {
 }
 
 .user-menu-popup-item:hover {
-    background-color: #eb1c24;
+    background-color: #eb1c24; /* Static accent color */
     color: #ffffff;
 }
 
@@ -462,7 +468,7 @@ form button:hover {
 }
 
 .sidebar .nav-button.active {
-    background-color: #eb1c24; /* Accent color */
+    background-color: #eb1c24; /* Static accent color */
     border-color: #eb1c24;
     color: #fff;
 }
@@ -486,7 +492,7 @@ form button:hover {
     font-size: 1.2em; /* Consistent with "Devices" */
     margin-top: 0;
     margin-bottom: 15px;
-    color: #eb1c24; /* Accent color */
+    color: #eb1c24; /* Static accent color */
     padding-bottom: 5px;
     font-weight: 600; /* Make it bolder */
 }
@@ -510,39 +516,34 @@ form button:hover {
 
 .device-item:hover {
     background-color: #25252b;
-    border-color: #eb1c24; /* Accent color border on hover */
+    border-color: #eb1c24; /* Default accent color border on hover */
 }
 
 .device-item.selected {
     background-color: #1c1c22; /* Keep original background */
-    border-color: #eb1c24; /* Accent color border */
+    border-color: #eb1c24; /* Default accent color border */
     color: #ffffff; /* Keep text color white or as needed */
 }
 
-/* Device item borders based on status color */
+/* Device item borders based on status color - these override the general .selected/.hover border-color */
 .device-item.online:hover,
 .device-item.online.selected {
-    border-color: rgb(39, 174, 96); /* Green border for online devices */
+    border-color: var(--status-color-online);
 }
 
 .device-item.warning:hover,
 .device-item.warning.selected {
-    border-color: rgb(243, 156, 18); /* Yellow/orange border for warning devices */
+    border-color: var(--status-color-warning);
 }
 
 .device-item.offline:hover,
 .device-item.offline.selected {
-    border-color: rgb(231, 76, 60); /* Red border for offline devices */
+    border-color: var(--status-color-offline);
 }
 
 .device-item.unknown:hover,
 .device-item.unknown.selected {
-    border-color: rgb(128, 128, 128); /* Gray border for unknown devices */
-}
-
-.device-item.selected .device-id,
-.device-item.selected .last-seen {
-    color: #ffffff; /* Ensure text within selected item remains readable */
+    border-color: var(--status-color-unknown);
 }
 
 .device-header {
@@ -599,33 +600,33 @@ form button:hover {
 .topic-item:hover {
     /* border-color: rgba(235, 28, 36, 0.4); */ /* Removed border hover */
     background-color: #222228; /* Hover background color */
-    border-color: #eb1c24; /* Accent color border on hover */
+    border-color: #eb1c24; /* Default accent color border on hover */
 }
 
 .topic-item.selected {
-    border-color: #eb1c24; /* Accent color border when selected */
+    border-color: #eb1c24; /* Default accent color border when selected */
     /* background-color: #202025; */ /* Optional: slightly different bg for selected topic if needed */
 }
 
-/* Topic item borders based on status color */
+/* Topic item borders based on status color - these override the general .selected/.hover border-color */
 .topic-item.online:hover,
 .topic-item.online.selected {
-    border-color: rgb(39, 174, 96); /* Green border for online topics */
+    border-color: var(--status-color-online);
 }
 
 .topic-item.warning:hover,
 .topic-item.warning.selected {
-    border-color: rgb(243, 156, 18); /* Yellow/orange border for warning topics */
+    border-color: var(--status-color-warning);
 }
 
 .topic-item.offline:hover,
 .topic-item.offline.selected {
-    border-color: rgb(231, 76, 60); /* Red border for offline topics */
+    border-color: var(--status-color-offline);
 }
 
 .topic-item.unknown:hover,
 .topic-item.unknown.selected {
-    border-color: rgb(128, 128, 128); /* Gray border for unknown topics */
+    border-color: var(--status-color-unknown);
 }
 
 .topic-item .topic-status {
@@ -890,18 +891,18 @@ form button:hover {
     animation: pulse-inner 2s infinite ease-in-out;
 }
 
-/* Color definitions for status indicators */
-.device-status.online::before, .topic-status.online::before { background-color: rgba(39, 174, 96, 0.3); }
-.device-status.online::after,  .topic-status.online::after  { background-color: rgb(39, 174, 96); }
+/* Color definitions for status indicators (using specific status vars) */
+.device-status.online::before, .topic-status.online::before { background-color: color-mix(in srgb, var(--status-color-online) 30%, transparent); }
+.device-status.online::after,  .topic-status.online::after  { background-color: var(--status-color-online); }
 
-.device-status.warning::before, .topic-status.warning::before { background-color: rgba(243, 156, 18, 0.3); }
-.device-status.warning::after,  .topic-status.warning::after  { background-color: rgb(243, 156, 18); }
+.device-status.warning::before, .topic-status.warning::before { background-color: color-mix(in srgb, var(--status-color-warning) 30%, transparent); }
+.device-status.warning::after,  .topic-status.warning::after  { background-color: var(--status-color-warning); }
 
-.device-status.offline::before, .topic-status.offline::before { background-color: rgba(231, 76, 60, 0.3); }
-.device-status.offline::after,  .topic-status.offline::after  { background-color: rgb(231, 76, 60); }
+.device-status.offline::before, .topic-status.offline::before { background-color: color-mix(in srgb, var(--status-color-offline) 30%, transparent); }
+.device-status.offline::after,  .topic-status.offline::after  { background-color: var(--status-color-offline); }
 
-.device-status.unknown::before, .topic-status.unknown::before { background-color: rgba(128, 128, 128, 0.3); }
-.device-status.unknown::after,  .topic-status.unknown::after  { background-color: rgb(128, 128, 128); }
+.device-status.unknown::before, .topic-status.unknown::before { background-color: color-mix(in srgb, var(--status-color-unknown) 30%, transparent); }
+.device-status.unknown::after,  .topic-status.unknown::after  { background-color: var(--status-color-unknown); }
 
 /* Remove old text-based color rules */
 /*
@@ -968,9 +969,8 @@ button {
 
 /* Ensure specific buttons like user menu items also get flat treatment */
 .user-menu-popup-item:hover {
-    background-color: #eb1c24;
+    background-color: #eb1c24; /* Static accent color */
     color: #ffffff;
-    /* box-shadow: none !important; /* Already flat, but for emphasis */
 }
 
 /* ===== SETTINGS PAGE STYLES ===== */
@@ -1387,12 +1387,12 @@ button {
 
 .time-range-btn:hover {
     background: #5a5a60;
-    border-color: #eb1c24;
+    border-color: var(--accent-color);
 }
 
 .time-range-btn.active {
-    background: #eb1c24;
-    border-color: #eb1c24;
+    background: var(--accent-color);
+    border-color: var(--accent-color);
     color: #ffffff;
 }
 

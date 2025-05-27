@@ -25,6 +25,7 @@ pub struct PulseStats {
 pub struct PulseVisualizationProps {
     pub device_id: String,
     pub topic: Option<String>,
+    pub topic_status: String, // Add topic_status prop
 }
 
 #[function_component(PulseVisualization)]
@@ -34,6 +35,14 @@ pub fn pulse_visualization(props: &PulseVisualizationProps) -> Html {
     let selected_time_range = use_state(|| "1h".to_string());
     let loading = use_state(|| false);
     let error = use_state(|| None::<String>);
+
+    let topic_status_color = match props.topic_status.as_str() {
+        "Active" => "var(--status-color-active)",
+        "Recent" => "var(--status-color-recent)",
+        "Stale" => "var(--status-color-stale)",
+        "Inactive" => "var(--status-color-inactive)",
+        _ => "var(--accent-color)", // Default or fallback
+    };
 
     // Fetch pulse history when device, topic, or time range changes
     {
@@ -97,7 +106,7 @@ pub fn pulse_visualization(props: &PulseVisualizationProps) -> Html {
     };
 
     html! {
-        <div class="pulse-visualization">
+        <div class="pulse-visualization" style={format!("--pulse-viz-accent-color: {};", topic_status_color)}>
             <div class="pulse-viz-header">
                 <h3>{"Pulse History"}</h3>
                 <div class="time-range-selector">

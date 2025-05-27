@@ -33,13 +33,13 @@ pub fn dashboard() -> Html {
     let devices = use_state(Vec::<DeviceInfo>::new);
     let selected_device = use_state(|| None::<String>);
     let topics = use_state(Vec::<TopicInfo>::new);
-    let selected_topic = use_state(|| None::<String>); // New state for selected topic
+    let selected_topic = use_state(|| None::<String>);
     let loading = use_state(|| true);
     let error = use_state(|| None::<String>);
     let auto_refresh = use_state(|| true);
     let navigator = use_navigator().unwrap();
     let user_menu_visible = use_state(|| false);
-    let user_data = use_state(|| None::<UserData>); // New state for user data
+    let user_data = use_state(|| None::<UserData>);
 
     // Check if user is authenticated
     let token = LocalStorage::get::<String>("pulson_token").ok();
@@ -234,15 +234,14 @@ pub fn dashboard() -> Html {
         })
     };
 
-    // Callback to toggle selected topic
     let on_topic_select = {
-        let selected_topic = selected_topic.clone();
+        let selected_topic_handle = selected_topic.clone();
         Callback::from(move |topic_name: String| {
-            let current_selected = (*selected_topic).clone();
+            let current_selected = (*selected_topic_handle).clone();
             if current_selected == Some(topic_name.clone()) {
-                selected_topic.set(None); // Deselect if already selected
+                selected_topic_handle.set(None); // Deselect if already selected
             } else {
-                selected_topic.set(Some(topic_name));
+                selected_topic_handle.set(Some(topic_name));
             }
         })
     };
@@ -387,6 +386,7 @@ pub fn dashboard() -> Html {
                                     let topic_name = topic.topic.clone();
                                     let is_topic_selected = selected_topic.as_ref() == Some(&topic_name);
                                     let device_id_for_pulse = selected_device.as_ref().unwrap().clone();
+                                    let current_topic_status = topic.status.clone(); // Get the status for the current topic
                                     let on_click_topic = {
                                         let topic_name = topic_name.clone();
                                         let on_topic_select = on_topic_select.clone();
@@ -395,8 +395,8 @@ pub fn dashboard() -> Html {
                                         })
                                     };
                                     html! {
-                                        <div class={classes!("topic-item", status_class, is_topic_selected.then(|| "selected"))} onclick={on_click_topic}>
-                                            <div class="topic-main-row"> // New wrapper for the main row content
+                                        <div class={classes!("topic-item", status_class, is_topic_selected.then(|| "selected"))}>
+                                            <div class="topic-main-row" onclick={on_click_topic}> // New wrapper for the main row content
                                                 <span class={classes!("topic-status", status_class)}>
                                                     // Status indicator dot
                                                 </span>
@@ -416,9 +416,10 @@ pub fn dashboard() -> Html {
                                             </div> // End of topic-main-row
                                             if is_topic_selected {
                                                 <div class="topic-details">
-                                                    <PulseVisualization 
-                                                        device_id={device_id_for_pulse} 
+                                                    <PulseVisualization
+                                                        device_id={device_id_for_pulse}
                                                         topic={Some(topic_name.clone())}
+                                                        topic_status={current_topic_status} // Pass the status
                                                     />
                                                 </div>
                                             }
@@ -508,14 +509,15 @@ fn get_device_status_class(status: &str) -> &'static str {
 
 fn get_topic_status_class(status: &str) -> &'static str {
     match status {
-        "Active" => "online",
-        "Recent" => "warning",
-        "Stale" => "offline", 
-        "Inactive" => "offline",
+        "Active" => "online", // Maps to .online CSS class
+        "Recent" => "warning",  // Maps to .warning CSS class
+        "Stale" => "offline",  // Maps to .offline CSS class
+        "Inactive" => "offline", // Maps to .offline CSS class (or a new .inactive if specific styling needed)
         _ => "unknown",
     }
 }
 
+// Helper function to format relative time
 fn format_relative_time(timestamp: &str) -> String {
     if let Ok(ts) = parse_timestamp(timestamp) {
         let now = Date::now();
