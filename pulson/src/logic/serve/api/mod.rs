@@ -8,13 +8,14 @@ use crate::logic::serve::api::account_routes::{delete_user, list_users, login, r
 // use crate::logic::serve::api::device_routes::{list_all, list_one, ping, delete_device};
 use crate::logic::serve::database::Database;
 use crate::logic::config::StatusConfig;
+use std::sync::{Arc, Mutex};
 use warp::Filter;
 
 /// Compose all account- and device-related routes into one API filter.
 pub fn api_routes(
     db: Database,
     root_pass: Option<String>,
-    status_config: StatusConfig,
+    status_config: Arc<Mutex<StatusConfig>>,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     let reg = register(db.clone(), root_pass.clone());
     let log = login(db.clone());
@@ -27,7 +28,8 @@ pub fn api_routes(
     let la = device_routes::list_all(db.clone(), status_config.clone());
     let lo = device_routes::list_one(db.clone(), status_config.clone());
     let dd = device_routes::delete_device(db.clone()); // Add delete_device route
+    let config_reload = device_routes::reload_config(status_config.clone()); // Add config reload route
 
     // Routes already include /api prefix in their individual definitions
-    reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(lo).or(la).or(dd)
+    reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(lo).or(la).or(dd).or(config_reload)
 }

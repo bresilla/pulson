@@ -7,6 +7,7 @@ use clap::Parser;
 use cli::{AccountAction, Cli, Commands, DeviceAction, ConfigAction};
 use logic::client::{account, list, ping, device, config};
 use logic::config::StatusConfig;
+use std::sync::{Arc, Mutex};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -59,6 +60,9 @@ async fn main() -> anyhow::Result<()> {
                 // Use CLI args and environment variables
                 StatusConfig::from_args_and_env(online_threshold, warning_threshold, stale_threshold)
             };
+
+            // Wrap configuration in Arc<Mutex<>> for thread-safe sharing
+            let status_config = Arc::new(Mutex::new(status_config));
 
             // Run the HTTP server
             logic::serve::run(host, port, db_path, daemon, root_pass, webui, status_config).await?

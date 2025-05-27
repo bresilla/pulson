@@ -100,9 +100,38 @@ pub async fn set(
     println!();
     println!("{} {}", "Configuration saved to:".bright_green().bold(), expanded_path.bright_white());
     
+    // Try to notify the server to reload configuration
+    if let Err(_) = notify_server_reload().await {
+        println!("{}", "Note: Could not notify running server to reload configuration".yellow());
+        println!("{}", "You may need to restart the server for changes to take effect".yellow());
+    } else {
+        println!("{}", "Server configuration reloaded successfully".bright_green());
+    }
+    
     // Show updated configuration
     println!();
     show(Some(expanded_path)).await?;
 
     Ok(())
+}
+
+/// Notify the server to reload its configuration
+async fn notify_server_reload() -> anyhow::Result<()> {
+    // Use default host/port or environment variables
+    let host = std::env::var("PULSON_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let port = std::env::var("PULSON_PORT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(8080);
+    
+    let url = format!("http://{}:{}/api/config/reload", host, port);
+    
+    let client = reqwest::Client::new();
+    let response = client.post(&url).send().await?;
+    
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("Server returned status: {}", response.status()))
+    }
 }

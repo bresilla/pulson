@@ -11,6 +11,7 @@ use crate::logic::config::StatusConfig;
 use daemonize::Daemonize;
 use shellexpand;
 use std::net::IpAddr;
+use std::sync::{Arc, Mutex};
 use warp::{Filter, Rejection};
 
 pub async fn run(
@@ -20,7 +21,7 @@ pub async fn run(
     daemon: bool,
     root_pass: Option<String>,
     _webui: bool,
-    status_config: StatusConfig,
+    status_config: Arc<Mutex<StatusConfig>>,
 ) -> anyhow::Result<()> {
     // 1) Daemonize if requested
     if daemon {
