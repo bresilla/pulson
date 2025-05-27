@@ -20,7 +20,7 @@ pub struct TopicInfo {
     pub topic: String,
     pub last_seen: String,
     pub status: String, // Server-calculated status: "Active", "Recent", "Stale", "Inactive"
-    pub data_types: Vec<String>, // List of data types available for this topic
+    pub data_type: String, // Single data type: ping, event, value, array, or bytes
 }
 
 #[derive(Clone, PartialEq, Deserialize, Debug)] // Added Debug for easier inspection
@@ -405,11 +405,8 @@ pub fn dashboard() -> Html {
                                                     <div class="topic-header">
                                                         <span class="topic-name">{&topic.topic}</span>
                                                         <div class="data-type-labels">
-                                                            {for topic.data_types.iter().map(|data_type| {
-                                                                html! {
-                                                                    <span class="data-type-label">{data_type}</span>
-                                                                }
-                                                            })}
+                                                            // Display single data type
+                                                            <span class="data-type-label data-type" title={format!("Data Type: {}", &topic.data_type)}>{&topic.data_type}</span>
                                                         </div>
                                                     </div>
                                                     <div class="topic-info">

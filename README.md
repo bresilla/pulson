@@ -15,8 +15,8 @@ Usage: pulson [OPTIONS] <COMMAND>
 
 Commands:
   serve         Run the HTTP server
-  list          Query the running server for all tracked devices (or topics for one)
-  ping          Send a ping for a given device_id and topic
+  device        Device management (list, delete)
+  pulse         Send a unified pulse with optional map-based data payload
   account       User account management (register, login, logout, delete, list)
   config        Configuration management (show, set thresholds)
   help          Print this message or the help of the given subcommand(s)
@@ -87,16 +87,33 @@ pulson --host 127.0.0.1 --port 3030 list
 #### List Topics for a Device
 
 ```bash
-pulson --host 127.0.0.1 --port 3030 list <DEVICE_ID>
+pulson --host 127.0.0.1 --port 3030 device list <DEVICE_ID>
 ```
 
-#### Ping
+#### Send Pulse Data
 
+The unified `pulse` command can send both simple pings and structured data:
+
+##### Simple Ping (no data)
 ```bash
-pulson --host 127.0.0.1 --port 3030 ping \
-  --device-id mydevice --topic "my/topic/pulse"
+pulson --host 127.0.0.1 --port 3030 pulse \
+  --device-id mydevice --topic "sensors"
 ```
 
+##### Structured Data
+```bash
+# GPS/Map coordinates
+pulson pulse -d mydevice -t location '{"map":[40.7128, -74.0060, 10]}'
+
+# Sensor readings
+pulson pulse -d mydevice -t temperature '{"sensor":23.5}'
+
+# Event data
+pulson pulse -d mydevice -t events '{"event":"system_startup"}'
+
+# Complex data
+pulson pulse -d mydevice -t status '{"status":"operational","uptime":3600,"errors":0}'
+```
 
 You can set environment variables PULSON_IP and PULSON_PORT to avoid typing --host/--port every time:
 
@@ -104,8 +121,9 @@ You can set environment variables PULSON_IP and PULSON_PORT to avoid typing --ho
 export PULSON_IP=127.0.0.1
 export PULSON_PORT=3030
 
-pulson list
-pulson ping -d foo -t bar
+pulson device list
+pulson pulse -d foo -t bar
+pulson pulse -d robot1 -t location '{"map":[lat, lon, alt]}'
 ```
 
 ## Configuration & Device Status Thresholds

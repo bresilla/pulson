@@ -672,8 +672,6 @@ form button:hover {
 }
 
 .data-type-label {
-    background-color: rgba(235, 28, 36, 0.15);
-    color: #eb1c24;
     font-size: 0.7em;
     font-weight: 600;
     padding: 2px 6px;
@@ -681,15 +679,45 @@ form button:hover {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     white-space: nowrap;
-    border: 1px solid rgba(235, 28, 36, 0.3);
+    border: 1px solid;
 }
 
-/* Structured data labels - use blue theme */
-.data-type-label:not(:first-child) {
-    background-color: rgba(52, 152, 219, 0.15);
+.data-type-label.data-type {
     color: #3498db;
+    background-color: rgba(52, 152, 219, 0.15);
     border-color: rgba(52, 152, 219, 0.3);
 }
+
+.data-type-label[title*="ping"] {
+    color: #8362af;
+    background-color: rgba(131, 98, 175, 0.15);
+    border-color: rgba(131, 98, 175, 0.3);
+}
+
+.data-type-label[title*="event"] {
+    color: #c1d205;
+    background-color: rgba(193, 210, 5, 0.15);
+    border-color: rgba(193, 210, 5, 0.3);
+}
+
+.data-type-label[title*="value"] {
+    color: #1293a7;
+    background-color: rgba(18, 147, 167, 0.15);
+    border-color: rgba(18, 147, 167, 0.3);
+}
+
+.data-type-label[title*="array"] {
+    color: #bd73c0;
+    background-color: rgba(189, 115, 192, 0.15);
+    border-color: rgba(189, 115, 192, 0.3);
+}
+
+.data-type-label[title*="bytes"] {
+    color: #5875ea;
+    background-color: rgba(88, 117, 234, 0.15);
+    border-color: rgba(88, 117, 234, 0.3);
+}
+
 
 .topic-details {
     padding: 15px;

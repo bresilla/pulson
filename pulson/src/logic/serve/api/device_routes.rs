@@ -1,5 +1,5 @@
 use crate::logic::serve::auth::authenticated_user;
-use crate::logic::serve::database::{Database, store_device_data, get_device_data, list_user_devices, delete_device as db_delete_device, get_user_config_or_default, set_user_config as db_set_user_config, get_pulse_history, get_pulse_stats, store_device_data_payload, get_device_latest_data};
+use crate::logic::serve::database::{Database, get_device_data, list_user_devices, delete_device as db_delete_device, get_user_config_or_default, set_user_config as db_set_user_config, get_pulse_history, get_pulse_stats, store_device_data_payload, get_device_latest_data};
 use crate::logic::config::StatusConfig;
 use chrono::Utc;
 use serde_json;
@@ -9,17 +9,10 @@ use warp::{
 };
 
 #[derive(serde::Deserialize)]
-pub struct PingPayload {
+pub struct PulsePayload {
     pub device_id: String,
     pub topic: String,
-}
-
-#[derive(serde::Deserialize)]
-pub struct DataPayload {
-    pub device_id: String,
-    pub topic: String,
-    pub data_type: String,
-    pub data: serde_json::Value,
+    pub data: Option<serde_json::Value>,
 }
 
 #[derive(serde::Deserialize)]
@@ -34,70 +27,84 @@ struct ConfigUpdateRequest {
     stale_threshold_seconds: u64,
 }
 
-pub fn ping(
+pub fn pulse(
     db: Database,
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone());
     warp::post()
-        .and(warp::path!("api" / "ping"))
+        .and(warp::path!("api" / "pulse"))
         .and(auth)
         .and(warp_body_json())
-        .map(move |username: String, payload: PingPayload| {
-            let ts = Utc::now().to_rfc3339();
-            // Include username in device_id to isolate user data
-            let device_id = format!("{}:{}", username, payload.device_id);
-            let data = serde_json::json!({
-                "topic": payload.topic,
-                "timestamp": ts.clone()
-            }).to_string();
-            
-            match store_device_data(&db, &device_id, Some(&payload.device_id), &data, &ts) {
-                Ok(_) => {
-                    println!("Ping from device {} (user: {})", payload.device_id, username);
-                    with_status(
-                        warp_json(&serde_json::json!({ "message": "ping received" })),
-                        StatusCode::OK,
-                    )
-                }
-                Err(status_code) => {
-                    eprintln!("Failed to store ping for device {} (user: {})", payload.device_id, username);
-                    with_status(
-                        warp_json(&serde_json::json!({ "error": "ping failed" })),
-                        status_code,
-                    )
-                }
-            }
-        })
-}
-
-pub fn data(
-    db: Database,
-) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
-    let auth = authenticated_user(db.clone());
-    warp::post()
-        .and(warp::path!("api" / "data"))
-        .and(auth)
-        .and(warp_body_json())
-        .map(move |username: String, payload: DataPayload| {
+        .map(move |username: String, payload: PulsePayload| {
             let ts = Utc::now().to_rfc3339();
             // Include username in device_id to isolate user data
             let device_id = format!("{}:{}", username, payload.device_id);
             
-            match store_device_data_payload(&db, &device_id, Some(&payload.device_id), &payload.topic, &payload.data_type, &payload.data, &ts) {
-                Ok(_) => {
-                    println!("Data from device {} (user: {}) - type: {}, topic: {}", 
-                        payload.device_id, username, payload.data_type, payload.topic);
-                    with_status(
-                        warp_json(&serde_json::json!({ "message": "data received" })),
-                        StatusCode::OK,
-                    )
+            match &payload.data {
+                Some(data_value) => {
+                    // Determine the single data type based on the JSON structure
+                    let data_type = match data_value {
+                        serde_json::Value::Number(_) => "value",
+                        serde_json::Value::String(_) => "event", 
+                        serde_json::Value::Array(_) => "array",
+                        serde_json::Value::Null => "ping",
+                        serde_json::Value::Bool(_) => "value", // Treat boolean as value
+                        serde_json::Value::Object(obj) => {
+                            // For objects, look at the first value to determine type
+                            if let Some((_, value)) = obj.iter().next() {
+                                match value {
+                                    serde_json::Value::Number(_) => "value",
+                                    serde_json::Value::String(_) => "event",
+                                    serde_json::Value::Array(_) => "array",
+                                    serde_json::Value::Null => "ping",
+                                    serde_json::Value::Bool(_) => "value",
+                                    _ => "value", // Default to value for nested objects
+                                }
+                            } else {
+                                "ping" // Empty object treated as ping
+                            }
+                        }
+                    };
+                    
+                    // Store structured data with the determined type
+                    match store_device_data_payload(&db, &device_id, Some(&payload.device_id), &payload.topic, data_type, data_value, &ts) {
+                        Ok(_) => {
+                            println!("Pulse with {} data from device {} (user: {}) - topic: {}", 
+                                data_type, payload.device_id, username, payload.topic);
+                            with_status(
+                                warp_json(&serde_json::json!({ "message": "pulse with data received" })),
+                                StatusCode::OK,
+                            )
+                        }
+                        Err(status_code) => {
+                            eprintln!("Failed to store pulse data for device {} (user: {})", payload.device_id, username);
+                            with_status(
+                                warp_json(&serde_json::json!({ "error": "pulse data storage failed" })),
+                                status_code,
+                            )
+                        }
+                    }
                 }
-                Err(status_code) => {
-                    eprintln!("Failed to store data for device {} (user: {})", payload.device_id, username);
-                    with_status(
-                        warp_json(&serde_json::json!({ "error": "data storage failed" })),
-                        status_code,
-                    )
+                None => {
+                    // Handle simple ping - store as ping data
+                    let ping_data = serde_json::json!(null);
+                    
+                    match store_device_data_payload(&db, &device_id, Some(&payload.device_id), &payload.topic, "ping", &ping_data, &ts) {
+                        Ok(_) => {
+                            println!("Ping pulse from device {} (user: {})", payload.device_id, username);
+                            with_status(
+                                warp_json(&serde_json::json!({ "message": "ping pulse received" })),
+                                StatusCode::OK,
+                            )
+                        }
+                        Err(status_code) => {
+                            eprintln!("Failed to store ping pulse for device {} (user: {})", payload.device_id, username);
+                            with_status(
+                                warp_json(&serde_json::json!({ "error": "ping pulse failed" })),
+                                status_code,
+                            )
+                        }
+                    }
                 }
             }
         })

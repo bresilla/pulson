@@ -1,4 +1,4 @@
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use warp::http::StatusCode;
@@ -83,7 +83,7 @@ pub fn init_database<P: AsRef<Path>>(db_path: P) -> anyhow::Result<Database> {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             device_id TEXT NOT NULL,
             topic TEXT NOT NULL,
-            data_type TEXT NOT NULL,
+            data_type TEXT NOT NULL CHECK(data_type IN ('ping', 'event', 'value', 'array', 'bytes')),
             data_payload TEXT NOT NULL,
             timestamp DATETIME NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -91,6 +91,14 @@ pub fn init_database<P: AsRef<Path>>(db_path: P) -> anyhow::Result<Database> {
         )",
         [],
     )?;
+
+    // Migration: Clean up any old structural_type column if it exists
+    let _ = conn.execute(
+        "CREATE TABLE device_data_new AS SELECT id, device_id, topic, data_type, data_payload, timestamp, created_at FROM device_data",
+        [],
+    );
+    let _ = conn.execute("DROP TABLE device_data", []);
+    let _ = conn.execute("ALTER TABLE device_data_new RENAME TO device_data", []);
 
     // Create indexes for better query performance
     conn.execute(
@@ -385,26 +393,20 @@ pub fn get_device_data(db: &Database, device_id: &str, status_config: &crate::lo
     for topic_result in topic_iter {
         let (topic_name, last_seen_str, status) = topic_result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         
-        // Get data types for this topic from device_data table
-        let mut data_types_stmt = conn.prepare(
-            "SELECT DISTINCT data_type FROM device_data WHERE device_id = ?1 AND topic = ?2"
+        // Get data type for this topic from device_data table (one type per topic)
+        let mut data_type_stmt = conn.prepare(
+            "SELECT data_type FROM device_data WHERE device_id = ?1 AND topic = ?2 ORDER BY timestamp DESC LIMIT 1"
         ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         
-        let data_types_iter = data_types_stmt.query_map([device_id, &topic_name], |row| {
+        let data_type = data_type_stmt.query_row([device_id, &topic_name], |row| {
             Ok(row.get::<_, String>(0)?)
-        }).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        
-        let mut data_types = vec!["PULSE".to_string()]; // Always include PULSE since it's in topics table
-        for data_type_result in data_types_iter {
-            let data_type = data_type_result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            data_types.push(data_type);
-        }
+        }).optional().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         
         topics.push(json!({
             "topic": topic_name,
             "last_seen": last_seen_str,
             "status": status,
-            "data_types": data_types
+            "data_type": data_type.unwrap_or("ping".to_string()) // Default to ping if no data found
         }));
     }
     
@@ -645,7 +647,7 @@ pub fn store_device_data_payload(
         [
             device_id, 
             topic, 
-            data_type, 
+            data_type,
             &data_payload.to_string(), 
             timestamp
         ],
