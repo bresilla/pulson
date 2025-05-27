@@ -19,6 +19,18 @@ pub struct DeleteDevicePayload {
     pub device_id: String,
 }
 
+#[derive(serde::Deserialize)]
+struct PingData {
+    topic: String,
+}
+
+#[derive(serde::Deserialize)]
+struct ConfigUpdateRequest {
+    online_threshold_seconds: u64,
+    warning_threshold_seconds: u64,
+    stale_threshold_seconds: u64,
+}
+
 pub fn ping(
     db: Database,
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
@@ -198,6 +210,65 @@ pub fn get_config(
                     "online_threshold_seconds": config.online_threshold_seconds,
                     "warning_threshold_seconds": config.warning_threshold_seconds,
                     "stale_threshold_seconds": config.stale_threshold_seconds
+                })),
+                StatusCode::OK,
+            )
+        })
+}
+
+pub fn update_config(
+    status_config: Arc<Mutex<StatusConfig>>,
+    db: Database,
+) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+    let auth = authenticated_user(db);
+    warp::post()
+        .and(warp::path!("api" / "config" / "update"))
+        .and(warp::path::end())
+        .and(auth)
+        .and(warp_body_json())
+        .map(move |_username: String, payload: ConfigUpdateRequest| {
+            // Validate thresholds
+            if payload.online_threshold_seconds >= payload.warning_threshold_seconds {
+                return with_status(
+                    warp_json(&serde_json::json!({ 
+                        "error": "Online threshold must be less than warning threshold" 
+                    })),
+                    StatusCode::BAD_REQUEST,
+                );
+            }
+            
+            if payload.warning_threshold_seconds >= payload.stale_threshold_seconds {
+                return with_status(
+                    warp_json(&serde_json::json!({ 
+                        "error": "Warning threshold must be less than stale threshold" 
+                    })),
+                    StatusCode::BAD_REQUEST,
+                );
+            }
+
+            // Update in-memory configuration
+            {
+                let mut config = status_config.lock().unwrap();
+                config.online_threshold_seconds = payload.online_threshold_seconds;
+                config.warning_threshold_seconds = payload.warning_threshold_seconds;
+                config.stale_threshold_seconds = payload.stale_threshold_seconds;
+            }
+
+            // Also save to configuration file
+            let config_path = {
+                let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                format!("{}/.config/pulson/config.toml", home)
+            };
+            
+            let config_to_save = status_config.lock().unwrap().clone();
+            if let Err(e) = config_to_save.save_to_file(&config_path) {
+                eprintln!("Warning: Failed to save configuration to file {}: {}", config_path, e);
+                // Continue anyway since in-memory config was updated
+            }
+
+            with_status(
+                warp_json(&serde_json::json!({ 
+                    "message": "Configuration updated successfully" 
                 })),
                 StatusCode::OK,
             )

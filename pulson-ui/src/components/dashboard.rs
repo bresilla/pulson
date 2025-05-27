@@ -27,13 +27,6 @@ pub struct UserData {
     pub is_root: bool,
 }
 
-#[derive(Clone, PartialEq, Deserialize, Debug)]
-pub struct ConfigData {
-    pub online_threshold_seconds: u64,
-    pub warning_threshold_seconds: u64,
-    pub stale_threshold_seconds: u64,
-}
-
 #[function_component(Dashboard)]
 pub fn dashboard() -> Html {
     let devices = use_state(Vec::<DeviceInfo>::new);
@@ -46,7 +39,6 @@ pub fn dashboard() -> Html {
     let navigator = use_navigator().unwrap();
     let user_menu_visible = use_state(|| false);
     let user_data = use_state(|| None::<UserData>); // New state for user data
-    let config_data = use_state(|| None::<ConfigData>); // New state for configuration data
 
     // Check if user is authenticated
     let token = LocalStorage::get::<String>("pulson_token").ok();
@@ -55,10 +47,9 @@ pub fn dashboard() -> Html {
         return html! {};
     }
 
-    // Fetch devices and config on component mount and when auto_refresh changes
+    // Fetch devices on component mount and when auto_refresh changes
     {
         let devices = devices.clone();
-        let config_data = config_data.clone();
         let loading = loading.clone();
         let error = error.clone();
         let auto_refresh_val = *auto_refresh;
@@ -66,7 +57,6 @@ pub fn dashboard() -> Html {
         use_effect_with_deps(
             move |_| {
                 let devices_initial = devices.clone();
-                let config_data_initial = config_data.clone();
                 let loading_initial = loading.clone();
                 let error_initial = error.clone();
 
@@ -74,11 +64,7 @@ pub fn dashboard() -> Html {
                 spawn_local(async move {
                     loading_initial.set(true);
                     
-                    // Fetch both devices and config in parallel
-                    let devices_result = fetch_devices().await;
-                    let config_result = fetch_config_data().await;
-                    
-                    match devices_result {
+                    match fetch_devices().await {
                         Ok(device_list) => {
                             devices_initial.set(device_list);
                             error_initial.set(None);
@@ -88,29 +74,19 @@ pub fn dashboard() -> Html {
                         }
                     }
                     
-                    if let Ok(config) = config_result {
-                        config_data_initial.set(Some(config));
-                    }
-                    
                     loading_initial.set(false);
                 });
 
                 // Set up auto-refresh interval if enabled
                 let interval_handle = if auto_refresh_val {
                     let interval_devices = devices.clone();
-                    let interval_config_data = config_data.clone();
                     let interval_error = error.clone();
                     
                     let interval = Interval::new(5000, move || {
                         let devices_inner = interval_devices.clone();
-                        let config_data_inner = interval_config_data.clone();
                         let error_inner = interval_error.clone();
                         spawn_local(async move {
-                            // Refresh both devices and config to ensure status colors are up to date
-                            let devices_result = fetch_devices().await;
-                            let config_result = fetch_config_data().await;
-                            
-                            match devices_result {
+                            match fetch_devices().await {
                                 Ok(device_list) => {
                                     devices_inner.set(device_list);
                                     error_inner.set(None);
@@ -118,10 +94,6 @@ pub fn dashboard() -> Html {
                                 Err(e) => {
                                     error_inner.set(Some(e));
                                 }
-                            }
-                            
-                            if let Ok(config) = config_result {
-                                config_data_inner.set(Some(config));
                             }
                         });
                     });
@@ -254,6 +226,13 @@ pub fn dashboard() -> Html {
         })
     };
 
+    let go_to_settings = {
+        let navigator = navigator.clone();
+        Callback::from(move |_| {
+            navigator.push(&crate::Route::Settings);
+        })
+    };
+
     // Callback to toggle selected topic
     let on_topic_select = {
         let selected_topic = selected_topic.clone();
@@ -330,31 +309,6 @@ pub fn dashboard() -> Html {
                     }
                 </nav>
 
-                // Configuration section
-                <div class="config-section">
-                    <h3>{"Thresholds"}</h3>
-                    if let Some(config) = &*config_data {
-                        <div class="config-info">
-                            <div class="config-item">
-                                <span class="config-label">{"Online:"}</span>
-                                <span class="config-value">{format!("{}s", config.online_threshold_seconds)}</span>
-                            </div>
-                            <div class="config-item">
-                                <span class="config-label">{"Warning:"}</span>
-                                <span class="config-value">{format!("{}s", config.warning_threshold_seconds)}</span>
-                            </div>
-                            <div class="config-item">
-                                <span class="config-label">{"Stale:"}</span>
-                                <span class="config-value">{format!("{}s", config.stale_threshold_seconds)}</span>
-                            </div>
-                        </div>
-                    } else {
-                        <div class="config-loading">
-                            <small>{"Loading configuration..."}</small>
-                        </div>
-                    }
-                </div>
-
                 <div class="sidebar-footer">
                     <div class="user-info-container">
                         <div class="user-menu-toggle" onclick={toggle_user_menu.clone()}>
@@ -398,9 +352,11 @@ pub fn dashboard() -> Html {
                                 <button class="user-menu-popup-item" onclick={logout.clone()}>
                                     {"Logout"}
                                 </button>
-                                <button class="user-menu-popup-item unimplemented">
+                                <button 
+                                    class="user-menu-popup-item" 
+                                    onclick={go_to_settings}
+                                >
                                     {"Settings"}
-                                    <small>{" (coming soon)"}</small>
                                 </button>
                             </div>
                         }
@@ -504,21 +460,7 @@ async fn fetch_user_data(token: &str) -> Result<UserData, String> {
     }
 }
 
-async fn fetch_config_data() -> Result<ConfigData, String> {
-    let request = Request::get("/api/config")
-        .send()
-        .await
-        .map_err(|e| format!("Network error: {}", e))?;
 
-    if request.status() == 200 {
-        request
-            .json::<ConfigData>()
-            .await
-            .map_err(|e| format!("Failed to parse response: {}", e))
-    } else {
-        Err(format!("Server error: {}", request.status()))
-    }
-}
 
 async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
     let token = LocalStorage::get::<String>("pulson_token")

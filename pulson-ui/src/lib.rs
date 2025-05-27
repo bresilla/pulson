@@ -2,7 +2,7 @@
 
 mod components;
 
-use components::Dashboard;
+use components::{Dashboard, Settings};
 use gloo_net::http::Request;
 use gloo_storage::{LocalStorage, Storage};
 use serde::{Deserialize, Serialize};
@@ -21,6 +21,8 @@ enum Route {
     Login,
     #[at("/")]
     Dashboard,
+    #[at("/settings")]
+    Settings,
     #[not_found]
     #[at("/404")]
     NotFound,
@@ -31,6 +33,7 @@ fn switch(routes: Route) -> Html {
     match routes {
         Route::Login => html! { <Login /> },
         Route::Dashboard => html! { <Dashboard /> },
+        Route::Settings => html! { <Settings /> },
         Route::NotFound => html! { <h1>{ "404 – page not found" }</h1> },
     }
 }
