@@ -1,5 +1,5 @@
 use crate::logic::serve::auth::authenticated_user;
-use crate::logic::serve::database::{Database, store_device_data, get_device_data, list_user_devices, delete_device as db_delete_device, get_user_config_or_default, set_user_config as db_set_user_config};
+use crate::logic::serve::database::{Database, store_device_data, get_device_data, list_user_devices, delete_device as db_delete_device, get_user_config_or_default, set_user_config as db_set_user_config, get_pulse_history, get_pulse_stats};
 use crate::logic::config::StatusConfig;
 use chrono::Utc;
 use serde_json;
@@ -297,6 +297,71 @@ pub fn set_user_config(
                             "error": "Failed to update user configuration" 
                         })),
                         StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                }
+            }
+        })
+}
+
+/// GET /api/devices/{device_id}/history?time_range={1h|1d|1w|1m}&topic={topic_name} - Get pulse history for visualization
+pub fn get_device_history(
+    db: Database,
+) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+    let auth = authenticated_user(db.clone());
+    warp::get()
+        .and(warp::path!("api" / "devices" / String / "history"))
+        .and(warp::query::<std::collections::HashMap<String, String>>())
+        .and(auth)
+        .map(move |device_id: String, params: std::collections::HashMap<String, String>, username: String| {
+            // Include username in device_id to get user-specific device
+            let full_device_id = format!("{}:{}", username, device_id);
+            
+            let time_range = params.get("time_range").map(|s| s.as_str()).unwrap_or("1d");
+            let topic = params.get("topic").map(|s| s.as_str());
+            
+            match get_pulse_history(&db, &full_device_id, topic, time_range) {
+                Ok(history_data) => {
+                    with_status(warp_json(&history_data), StatusCode::OK)
+                }
+                Err(status_code) => {
+                    eprintln!("Failed to get pulse history for device {} (user: {})", device_id, username);
+                    with_status(
+                        warp_json(&serde_json::json!({ 
+                            "error": "Failed to get pulse history" 
+                        })),
+                        status_code,
+                    )
+                }
+            }
+        })
+}
+
+/// GET /api/devices/{device_id}/stats?time_range={1h|1d|1w|1m} - Get pulse statistics
+pub fn get_device_stats(
+    db: Database,
+) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+    let auth = authenticated_user(db.clone());
+    warp::get()
+        .and(warp::path!("api" / "devices" / String / "stats"))
+        .and(warp::query::<std::collections::HashMap<String, String>>())
+        .and(auth)
+        .map(move |device_id: String, params: std::collections::HashMap<String, String>, username: String| {
+            // Include username in device_id to get user-specific device
+            let full_device_id = format!("{}:{}", username, device_id);
+            
+            let time_range = params.get("time_range").map(|s| s.as_str()).unwrap_or("1d");
+            
+            match get_pulse_stats(&db, &full_device_id, time_range) {
+                Ok(stats_data) => {
+                    with_status(warp_json(&stats_data), StatusCode::OK)
+                }
+                Err(status_code) => {
+                    eprintln!("Failed to get pulse stats for device {} (user: {})", device_id, username);
+                    with_status(
+                        warp_json(&serde_json::json!({ 
+                            "error": "Failed to get pulse statistics" 
+                        })),
+                        status_code,
                     )
                 }
             }

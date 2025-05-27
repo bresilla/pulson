@@ -33,7 +33,9 @@ pub fn api_routes(
     let config_update = device_routes::update_config(status_config.clone(), db.clone()); // Add config update route
     let user_config_get = device_routes::get_user_config(db.clone()); // Add user config get route
     let user_config_set = device_routes::set_user_config(db.clone()); // Add user config set route
+    let device_history = device_routes::get_device_history(db.clone()); // Add pulse history route
+    let device_stats = device_routes::get_device_stats(db.clone()); // Add pulse stats route
 
     // Routes already include /api prefix in their individual definitions
-    reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(lo).or(la).or(dd).or(config_get).or(config_update).or(user_config_get).or(user_config_set)
+    reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(lo).or(la).or(dd).or(config_get).or(config_update).or(user_config_get).or(user_config_set).or(device_history).or(device_stats)
 }

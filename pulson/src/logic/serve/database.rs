@@ -64,6 +64,32 @@ pub fn init_database<P: AsRef<Path>>(db_path: P) -> anyhow::Result<Database> {
         [],
     )?;
 
+    // Create table for historical pulse data
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS pulse_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT NOT NULL,
+            topic TEXT NOT NULL,
+            timestamp DATETIME NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(device_id) REFERENCES devices(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    // Create indexes for better query performance
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_pulse_history_device_timestamp 
+         ON pulse_history(device_id, timestamp)",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_pulse_history_topic_timestamp 
+         ON pulse_history(device_id, topic, timestamp)",
+        [],
+    )?;
+
     Ok(Arc::new(Mutex::new(conn)))
 }
 
@@ -285,6 +311,12 @@ pub fn store_device_data(db: &Database, device_id: &str, name: Option<&str>, dat
         [device_id, topic, timestamp],
     ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
+    // Store historical pulse data
+    conn.execute(
+        "INSERT INTO pulse_history (device_id, topic, timestamp) VALUES (?1, ?2, ?3)",
+        [device_id, topic, timestamp],
+    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
     Ok(())
 }
 
@@ -394,4 +426,134 @@ pub fn delete_device(db: &Database, device_id: &str) -> Result<bool, StatusCode>
     ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
     Ok(rows_affected > 0)
+}
+
+/// Get historical pulse data for visualization
+pub fn get_pulse_history(db: &Database, device_id: &str, topic: Option<&str>, time_range: &str) -> Result<Value, StatusCode> {
+    let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    // Calculate time range
+    let now = chrono::Utc::now();
+    let start_time = match time_range {
+        "1h" => now - chrono::Duration::hours(1),
+        "1d" => now - chrono::Duration::days(1),
+        "1w" => now - chrono::Duration::weeks(1),
+        "1m" => now - chrono::Duration::days(30),
+        _ => return Err(StatusCode::BAD_REQUEST),
+    };
+    
+    // Build query based on whether we want specific topic or all topics
+    let (query, params): (String, Vec<String>) = if let Some(topic_name) = topic {
+        (
+            "SELECT 
+                datetime(timestamp) as time,
+                COUNT(*) as pulse_count
+             FROM pulse_history 
+             WHERE device_id = ?1 AND topic = ?2 AND timestamp >= ?3
+             GROUP BY strftime('%Y-%m-%d %H:%M', timestamp)
+             ORDER BY timestamp".to_string(),
+            vec![device_id.to_string(), topic_name.to_string(), start_time.to_rfc3339()]
+        )
+    } else {
+        (
+            "SELECT 
+                datetime(timestamp) as time,
+                topic,
+                COUNT(*) as pulse_count
+             FROM pulse_history 
+             WHERE device_id = ?1 AND timestamp >= ?2
+             GROUP BY strftime('%Y-%m-%d %H:%M', timestamp), topic
+             ORDER BY timestamp, topic".to_string(),
+            vec![device_id.to_string(), start_time.to_rfc3339()]
+        )
+    };
+    
+    let mut stmt = conn.prepare(&query)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let params_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
+    let pulse_iter = stmt.query_map(params_refs.as_slice(), |row| {
+        if topic.is_some() {
+            Ok(json!({
+                "time": row.get::<_, String>(0)?,
+                "pulse_count": row.get::<_, i64>(1)?
+            }))
+        } else {
+            Ok(json!({
+                "time": row.get::<_, String>(0)?,
+                "topic": row.get::<_, String>(1)?,
+                "pulse_count": row.get::<_, i64>(2)?
+            }))
+        }
+    }).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let mut pulses = Vec::new();
+    for pulse in pulse_iter {
+        pulses.push(pulse.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?);
+    }
+    
+    Ok(json!({
+        "time_range": time_range,
+        "start_time": start_time.to_rfc3339(),
+        "end_time": now.to_rfc3339(),
+        "data": pulses
+    }))
+}
+
+/// Get pulse statistics for a device
+pub fn get_pulse_stats(db: &Database, device_id: &str, time_range: &str) -> Result<Value, StatusCode> {
+    let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    // Calculate time range
+    let now = chrono::Utc::now();
+    let start_time = match time_range {
+        "1h" => now - chrono::Duration::hours(1),
+        "1d" => now - chrono::Duration::days(1),
+        "1w" => now - chrono::Duration::weeks(1),
+        "1m" => now - chrono::Duration::days(30),
+        _ => return Err(StatusCode::BAD_REQUEST),
+    };
+    
+    let mut stmt = conn.prepare(
+        "SELECT 
+            topic,
+            COUNT(*) as total_pulses,
+            MIN(timestamp) as first_pulse,
+            MAX(timestamp) as last_pulse
+         FROM pulse_history 
+         WHERE device_id = ?1 AND timestamp >= ?2
+         GROUP BY topic
+         ORDER BY total_pulses DESC"
+    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let stats_iter = stmt.query_map([device_id, &start_time.to_rfc3339()], |row| {
+        Ok(json!({
+            "topic": row.get::<_, String>(0)?,
+            "total_pulses": row.get::<_, i64>(1)?,
+            "first_pulse": row.get::<_, String>(2)?,
+            "last_pulse": row.get::<_, String>(3)?
+        }))
+    }).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let mut stats_data = Vec::new();
+    for stat in stats_iter {
+        stats_data.push(stat.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?);
+    }
+    
+    // Get total count for the device
+    let mut total_stmt = conn.prepare(
+        "SELECT COUNT(*) FROM pulse_history WHERE device_id = ?1 AND timestamp >= ?2"
+    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let total_count: i64 = total_stmt.query_row([device_id, &start_time.to_rfc3339()], |row| {
+        Ok(row.get::<_, i64>(0)?)
+    }).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    Ok(json!({
+        "time_range": time_range,
+        "start_time": start_time.to_rfc3339(),
+        "end_time": now.to_rfc3339(),
+        "total_pulses": total_count,
+        "stats": stats_data // Changed from "topics" to "stats"
+    }))
 }

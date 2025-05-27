@@ -6,6 +6,7 @@ use serde::Deserialize;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
+use super::pulse_visualization::PulseVisualization;
 
 #[derive(Clone, PartialEq, Deserialize)]
 pub struct DeviceInfo {
@@ -385,6 +386,7 @@ pub fn dashboard() -> Html {
                                     let status_class = get_topic_status_class(&topic.status);
                                     let topic_name = topic.topic.clone();
                                     let is_topic_selected = selected_topic.as_ref() == Some(&topic_name);
+                                    let device_id_for_pulse = selected_device.as_ref().unwrap().clone();
                                     let on_click_topic = {
                                         let topic_name = topic_name.clone();
                                         let on_topic_select = on_topic_select.clone();
@@ -414,17 +416,10 @@ pub fn dashboard() -> Html {
                                             </div> // End of topic-main-row
                                             if is_topic_selected {
                                                 <div class="topic-details">
-                                                    <h4>{"Last 12 Hours Activity (Placeholder)"}</h4>
-                                                    <div class="placeholder-graph">
-                                                        <p>{"Graph showing on/off periods will be here."}</p>
-                                                        <p>{"[||||| | | ||||||||| | |||| | |||||||]"}</p>
-                                                    </div>
-                                                    <h4>{"Other Statistics (Placeholder)"}</h4>
-                                                    <ul>
-                                                        <li>{"Total Pings: N/A"}</li>
-                                                        <li>{"Average Uptime: N/A"}</li>
-                                                        <li>{"Last Downtime: N/A"}</li>
-                                                    </ul>
+                                                    <PulseVisualization 
+                                                        device_id={device_id_for_pulse} 
+                                                        topic={Some(topic_name.clone())}
+                                                    />
                                                 </div>
                                             }
                                         </div>

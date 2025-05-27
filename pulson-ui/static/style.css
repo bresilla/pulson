@@ -1342,3 +1342,330 @@ button {
     color: #ffffff !important;
     border-color: var(--accent-color) !important;
 }
+
+/* Pulse Visualization Styles */
+.pulse-visualization {
+    background-color: #1c1c22;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    border: 1px solid #3a3a40;
+}
+
+.pulse-viz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #3a3a40;
+}
+
+.pulse-viz-header h3 {
+    margin: 0;
+    color: #eb1c24;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.time-range-selector {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.time-range-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid #5a5a60;
+    border-radius: 4px;
+    background: #4a4a50;
+    color: #f0f0f0;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.time-range-btn:hover {
+    background: #5a5a60;
+    border-color: #eb1c24;
+}
+
+.time-range-btn.active {
+    background: #eb1c24;
+    border-color: #eb1c24;
+    color: #ffffff;
+}
+
+.pulse-viz-loading, .pulse-viz-error {
+    text-align: center;
+    padding: 2rem;
+    color: #a0a0a0;
+}
+
+.pulse-viz-error {
+    color: #ff6b6b;
+    background-color: rgba(235, 28, 36, 0.1);
+    border-radius: 4px;
+}
+
+.pulse-viz-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Pulse Chart Styles */
+.pulse-chart-container {
+    background-color: #25252b;
+    border-radius: 6px;
+    padding: 1.5rem;
+    border: 1px solid #3a3a40;
+}
+
+.pulse-chart-container h4 {
+    margin: 0 0 1rem 0;
+    color: #f0f0f0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.chart-info {
+    margin-bottom: 1.5rem;
+    padding: 0.75rem;
+    background-color: rgba(60, 60, 70, 0.3);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #b0b0b0;
+}
+
+.chart-info strong {
+    color: #f0f0f0;
+}
+
+.pulse-chart-empty {
+    text-align: center;
+    padding: 3rem;
+    color: #a0a0a0;
+    background-color: #1c1c22;
+    border-radius: 4px;
+    border: 1px dashed #3a3a40;
+}
+
+.pulse-chart-empty p {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+}
+
+.pulse-chart-empty small {
+    font-size: 0.85rem;
+    color: #808080;
+}
+
+/* Chart Visualization */
+.pulse-chart-visualization {
+    background-color: #1c1c22;
+    border-radius: 4px;
+    padding: 1rem;
+    border: 1px solid #3a3a40;
+}
+
+.chart-legend {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: #b0b0b0;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+.legend-color.pulse-high {
+    background-color: #27ae60;
+}
+
+.legend-color.pulse-medium {
+    background-color: #f39c12;
+}
+
+.legend-color.pulse-low {
+    background-color: #3498db;
+}
+
+.legend-color.pulse-none {
+    background-color: #7f8c8d;
+}
+
+.chart-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 200px;
+    padding: 1rem 0.5rem;
+    background: linear-gradient(to top, #2a2a30 0%, #2a2a30 1px, transparent 1px);
+    background-size: 100% 40px;
+    position: relative;
+}
+
+.chart-bar-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 2px;
+    height: 100%;
+    position: relative;
+}
+
+.chart-bar {
+    width: 100%;
+    min-height: 2px;
+    border-radius: 1px 1px 0 0;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    margin-top: auto;
+}
+
+.chart-bar.pulse-high {
+    background-color: #27ae60;
+    box-shadow: 0 0 4px rgba(39, 174, 96, 0.3);
+}
+
+.chart-bar.pulse-medium {
+    background-color: #f39c12;
+    box-shadow: 0 0 4px rgba(243, 156, 18, 0.3);
+}
+
+.chart-bar.pulse-low {
+    background-color: #3498db;
+    box-shadow: 0 0 4px rgba(52, 152, 219, 0.3);
+}
+
+.chart-bar.pulse-none {
+    background-color: #7f8c8d;
+}
+
+.chart-bar:hover {
+    transform: scaleY(1.1);
+    filter: brightness(1.2);
+}
+
+.chart-label {
+    position: absolute;
+    bottom: -20px;
+    font-size: 0.7rem;
+    color: #888;
+    transform: rotate(-45deg);
+    transform-origin: center;
+    white-space: nowrap;
+}
+
+/* Pulse Statistics Styles */
+.pulse-stats-container {
+    background-color: #25252b;
+    border-radius: 6px;
+    padding: 1.5rem;
+    border: 1px solid #3a3a40;
+}
+
+.pulse-stats-container h4 {
+    margin: 0 0 1rem 0;
+    color: #f0f0f0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.no-stats {
+    text-align: center;
+    padding: 2rem;
+    color: #a0a0a0;
+    font-style: italic;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.stat-item {
+    background-color: #1c1c22;
+    border-radius: 6px;
+    padding: 1rem;
+    border: 1px solid #3a3a40;
+    text-align: center;
+    transition: border-color 0.2s ease;
+}
+
+.stat-item:hover {
+    border-color: #eb1c24;
+}
+
+.stat-topic {
+    font-size: 0.9rem;
+    color: #f0f0f0;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    word-break: break-word;
+}
+
+.stat-count {
+    font-size: 2rem;
+    color: #eb1c24;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #b0b0b0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.75rem;
+}
+
+.stat-times {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.stat-times small {
+    font-size: 0.75rem;
+    color: #888;
+}
+
+/* Responsive adjustments for pulse visualization */
+@media (max-width: 768px) {
+    .pulse-viz-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+    
+    .time-range-selector {
+        justify-content: center;
+    }
+    
+    .chart-legend {
+        justify-content: center;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-bars {
+        height: 150px;
+    }
+}
