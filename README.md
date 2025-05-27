@@ -106,20 +106,20 @@ The pulse command automatically detects and categorizes your data based on JSON 
 
 ```bash
 # Sensor values (detected as "value" type)
-pulson pulse -d mydevice -t temperature '{"sensor":23.5}'
-pulson pulse -d mydevice -t status '{"online":true}'
+pulson pulse -d mydevice -t /topic/temperature '{"sensor":23.5}'
+pulson pulse -d mydevice -t /another/topic/status '{"online":true}'
 
 # Array data (detected as "array" type)  
-pulson pulse -d mydevice -t location '{"coordinates":[40.7128, -74.0060, 10]}'
+pulson pulse -d mydevice -t /one/location '{"coordinates":[40.7128, -74.0060, 10]}'
 
 # Event messages (detected as "event" type)
-pulson pulse -d mydevice -t events '{"event":"system_startup"}'
+pulson pulse -d mydevice -t /other/event '{"event":"system_startup"}'
 
 # Complex structured data (detected as "value" type)
-pulson pulse -d mydevice -t status '{"status":"operational","uptime":3600,"errors":0}'
+pulson pulse -d mydevice -t /robo/status '{"status":"operational","uptime":3600,"errors":0}'
 
 # Explicit ping (detected as "ping" type)
-pulson pulse -d mydevice -t heartbeat '{"ping":null}'
+pulson pulse -d mydevice -t /just/heartbeat '{"ping":null}'
 ```
 
 **Data Type Auto-Detection:**
@@ -137,7 +137,7 @@ export PULSON_PORT=3030
 
 pulson device list
 pulson pulse -d foo -t bar                    # Simple ping
-pulson pulse -d robot1 -t location '{"coordinates":[lat, lon, alt]}'  # Structured data
+pulson pulse -d robot1 -t /top/location '{"coordinates":[lat, lon, alt]}'  # Structured data
 ```
 
 ## Configuration & Device Status Thresholds
