@@ -1,5 +1,11 @@
 /* pulson-ui/static/style.css */
 
+/* CSS Variables */
+:root {
+    --accent-color: #eb1c24;
+    --border-color: #3a3a40;
+}
+
 /* CSS Reset and Base Styles */
 * {
     margin: 0;
@@ -291,7 +297,7 @@ form button:hover {
 .user-menu-toggle {
     display: flex;
     align-items: center;
-    padding: 12px 10px 8px 10px; /* Adjusted padding: top/bottom to shift content lower */
+    padding: 10px; /* Equal padding for proper vertical centering */
     cursor: pointer;
     border-radius: 4px;
     transition: background-color 0.3s, border-color 0.3s;
@@ -308,11 +314,23 @@ form button:hover {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background-color: #FFFFFF; /* White background */
-    border: 2px solid var(--accent-color); /* Accent color border */
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); /* Nice gradient */
+    border: 2px solid #ffffff;
     box-sizing: border-box; /* Ensure width/height includes border */
     margin-right: 10px;
     flex-shrink: 0; /* Prevent shrinking */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 14px;
+    position: relative;
+}
+
+.profile-image-placeholder::before {
+    content: "👤"; /* User icon */
+    font-size: 16px;
 }
 
 .user-info-container .username {
@@ -397,7 +415,7 @@ form button:hover {
     height: 22px; /* Height of the switch */
     position: relative;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
     padding: 0; /* Remove default button padding */
     display: flex; /* To help center the handle if needed, though position absolute is used */
     align-items: center; /* Vertically center handle */
@@ -415,8 +433,8 @@ form button:hover {
 }
 
 .pill-switch.active {
-    background-color: var(--accent-color);
-    border-color: var(--accent-color);
+    background-color: #dc2626; /* Red when active */
+    border-color: #dc2626;
 }
 
 .pill-switch.active .pill-switch-handle {
@@ -1250,21 +1268,77 @@ button {
     font-style: italic;
 }
 
-/* Responsive design for settings */
-@media (max-width: 768px) {
-    .settings-content {
-        padding: 1rem;
-    }
-    
-    .settings-section {
-        padding: 1.5rem;
-    }
-    
-    .form-input {
-        max-width: 100%;
-    }
-    
-    .preview-items {
-        font-size: 0.85rem;
-    }
+/* ===== SETTINGS PAGE SPECIFIC STYLES ===== */
+
+/* User Info Section in Settings Sidebar */
+.user-info-section {
+    padding: 15px;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    background-color: rgba(46, 46, 54, 0.3);
+    margin-bottom: 20px;
+}
+
+.user-info-section .user-info-display {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.user-info-section .profile-image-placeholder {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    border: 2px solid #ffffff;
+    box-sizing: border-box;
+    margin-right: 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 14px;
+    position: relative;
+}
+
+.user-info-section .profile-image-placeholder::before {
+    content: "👤";
+    font-size: 16px;
+}
+
+.user-info-section .user-details {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.user-info-section .username {
+    font-weight: bold;
+    color: #f0f0f0;
+    font-size: 0.95rem;
+}
+
+.user-info-section .user-role {
+    font-size: 0.8rem;
+    color: #b0b0b0;
+}
+
+.settings-logout {
+    width: 100%;
+    margin-top: 8px;
+}
+
+/* Back to Dashboard Button */
+.back-to-dashboard {
+    border: 1px solid var(--accent-color) !important;
+    background-color: transparent !important;
+    color: var(--accent-color) !important;
+}
+
+.back-to-dashboard:hover {
+    background-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    border-color: var(--accent-color) !important;
 }

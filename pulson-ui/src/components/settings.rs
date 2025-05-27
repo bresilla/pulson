@@ -216,45 +216,48 @@ pub fn settings() -> Html {
                     <h1>{"pulson"}</h1>
                 </div>
 
+                // User info moved to top of sidebar
+                <div class="user-info-section">
+                    <div class="user-info-display">
+                        <div class="profile-image-placeholder"></div>
+                        <div class="user-details">
+                            <span class="username">
+                                {
+                                    if let Some(ud) = &*user_data {
+                                        ud.username.clone()
+                                    } else {
+                                        "Loading...".to_string()
+                                    }
+                                }
+                            </span>
+                            <span class="user-role">
+                                {
+                                    if let Some(ud) = &*user_data {
+                                        if ud.is_root {
+                                            "(Root)".to_string()
+                                        } else {
+                                            "(User)".to_string()
+                                        }
+                                    } else {
+                                        "".to_string()
+                                    }
+                                }
+                            </span>
+                        </div>
+                    </div>
+                    <button class="logout-button settings-logout" onclick={logout}>
+                        {"Logout"}
+                    </button>
+                </div>
+
                 <nav class="sidebar-nav">
-                    <button class="nav-button" onclick={go_to_dashboard}>
+                    <button class="nav-button back-to-dashboard" onclick={go_to_dashboard}>
                         {"← Back to Dashboard"}
                     </button>
                 </nav>
 
                 <div class="sidebar-footer">
-                    <div class="user-info-container">
-                        <div class="user-info-display">
-                            <div class="profile-image-placeholder"></div>
-                            <div class="user-details">
-                                <span class="username">
-                                    {
-                                        if let Some(ud) = &*user_data {
-                                            ud.username.clone()
-                                        } else {
-                                            "Loading...".to_string()
-                                        }
-                                    }
-                                </span>
-                                <span class="user-role">
-                                    {
-                                        if let Some(ud) = &*user_data {
-                                            if ud.is_root {
-                                                "(Root)".to_string()
-                                            } else {
-                                                "(User)".to_string()
-                                            }
-                                        } else {
-                                            "".to_string()
-                                        }
-                                    }
-                                </span>
-                            </div>
-                        </div>
-                        <button class="logout-button" onclick={logout}>
-                            {"Logout"}
-                        </button>
-                    </div>
+                    // Footer can be used for additional controls if needed
                 </div>
             </aside>
 

@@ -444,7 +444,7 @@ pub fn dashboard() -> Html {
 }
 
 async fn fetch_user_data(token: &str) -> Result<UserData, String> {
-    let request = Request::get("/api/user")
+    let request = Request::get("/api/userinfo")
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await
