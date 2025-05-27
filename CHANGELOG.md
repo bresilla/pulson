@@ -87,6 +87,7 @@
 
 ### Build
 
+- Update crate versions during releases
 - Integrate web UI with devbox and rust build
 - Build the web UI as WASM
 - Bump release toolchain version
