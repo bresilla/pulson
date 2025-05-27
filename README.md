@@ -16,7 +16,7 @@ Usage: pulson [OPTIONS] <COMMAND>
 Commands:
   serve         Run the HTTP server
   device        Device management (list, delete)
-  pulse         Send a unified pulse with optional map-based data payload
+  pulse         Send a unified pulse with optional structured data payload
   account       User account management (register, login, logout, delete, list)
   config        Configuration management (show, set thresholds)
   help          Print this message or the help of the given subcommand(s)
@@ -92,28 +92,42 @@ pulson --host 127.0.0.1 --port 3030 device list <DEVICE_ID>
 
 #### Send Pulse Data
 
-The unified `pulse` command can send both simple pings and structured data:
+The unified `pulse` command provides a single interface for sending both simple pings and structured data. This replaces the previous separate ping and data commands.
 
-##### Simple Ping (no data)
+##### Simple Ping (automatic)
+When no data is provided, the command automatically sends a ping pulse:
 ```bash
 pulson --host 127.0.0.1 --port 3030 pulse \
   --device-id mydevice --topic "sensors"
 ```
 
-##### Structured Data
+##### Structured Data with Auto-Detection
+The pulse command automatically detects and categorizes your data based on JSON structure:
+
 ```bash
-# GPS/Map coordinates
-pulson pulse -d mydevice -t location '{"map":[40.7128, -74.0060, 10]}'
-
-# Sensor readings
+# Sensor values (detected as "value" type)
 pulson pulse -d mydevice -t temperature '{"sensor":23.5}'
+pulson pulse -d mydevice -t status '{"online":true}'
 
-# Event data
+# Array data (detected as "array" type)  
+pulson pulse -d mydevice -t location '{"coordinates":[40.7128, -74.0060, 10]}'
+
+# Event messages (detected as "event" type)
 pulson pulse -d mydevice -t events '{"event":"system_startup"}'
 
-# Complex data
+# Complex structured data (detected as "value" type)
 pulson pulse -d mydevice -t status '{"status":"operational","uptime":3600,"errors":0}'
+
+# Explicit ping (detected as "ping" type)
+pulson pulse -d mydevice -t heartbeat '{"ping":null}'
 ```
+
+**Data Type Auto-Detection:**
+- **Numbers/Booleans**: Categorized as `value` type
+- **Arrays**: Categorized as `array` type  
+- **Strings**: Categorized as `event` type
+- **Objects with null values**: Categorized as `ping` type
+- **No data provided**: Automatically sends `{"ping":null}` as `ping` type
 
 You can set environment variables PULSON_IP and PULSON_PORT to avoid typing --host/--port every time:
 
@@ -122,8 +136,8 @@ export PULSON_IP=127.0.0.1
 export PULSON_PORT=3030
 
 pulson device list
-pulson pulse -d foo -t bar
-pulson pulse -d robot1 -t location '{"map":[lat, lon, alt]}'
+pulson pulse -d foo -t bar                    # Simple ping
+pulson pulse -d robot1 -t location '{"coordinates":[lat, lon, alt]}'  # Structured data
 ```
 
 ## Configuration & Device Status Thresholds
