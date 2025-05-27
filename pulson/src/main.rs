@@ -5,7 +5,8 @@ mod logic;
 
 use clap::Parser;
 use cli::{AccountAction, Cli, Commands, DeviceAction, ConfigAction};
-use logic::client::{account, list, ping, device, config};
+use crate::logic::client::{account, list, ping, device};
+use crate::logic::client::config::{show, set}; // Import show and set directly using crate path
 use logic::config::StatusConfig;
 use std::sync::{Arc, Mutex};
 
@@ -42,24 +43,13 @@ async fn main() -> anyhow::Result<()> {
             daemon,
             root_pass,
             webui,
-            config,
+            config: _,  // Config file option ignored - using purely server-based configuration
             online_threshold,
             warning_threshold,
             stale_threshold,
         } => {
-            // Create configuration from file and CLI arguments
-            let status_config = if let Some(config_path) = config {
-                // Load from file first, then override with CLI args
-                let base_config = StatusConfig::from_file(&config_path)?;
-                StatusConfig {
-                    online_threshold_seconds: online_threshold.unwrap_or(base_config.online_threshold_seconds),
-                    warning_threshold_seconds: warning_threshold.unwrap_or(base_config.warning_threshold_seconds),
-                    stale_threshold_seconds: stale_threshold.unwrap_or(base_config.stale_threshold_seconds),
-                }
-            } else {
-                // Use CLI args and environment variables
-                StatusConfig::from_args_and_env(online_threshold, warning_threshold, stale_threshold)
-            };
+            // Create configuration from CLI arguments and environment variables only
+            let status_config = StatusConfig::from_args_and_env(online_threshold, warning_threshold, stale_threshold);
 
             // Wrap configuration in Arc<Mutex<>> for thread-safe sharing
             let status_config = Arc::new(Mutex::new(status_config));
@@ -77,24 +67,13 @@ async fn main() -> anyhow::Result<()> {
                 watch,
                 interval,
                 extended,
-                config,
+                config: _,  // Config file option ignored - using purely server-based configuration
                 online_threshold,
                 warning_threshold,
                 stale_threshold,
             } => {
-                // Create configuration from file and CLI arguments
-                let status_config = if let Some(config_path) = config {
-                    // Load from file first, then override with CLI args
-                    let base_config = StatusConfig::from_file(&config_path)?;
-                    StatusConfig {
-                        online_threshold_seconds: online_threshold.unwrap_or(base_config.online_threshold_seconds),
-                        warning_threshold_seconds: warning_threshold.unwrap_or(base_config.warning_threshold_seconds),
-                        stale_threshold_seconds: stale_threshold.unwrap_or(base_config.stale_threshold_seconds),
-                    }
-                } else {
-                    // Use CLI args and environment variables
-                    StatusConfig::from_args_and_env(online_threshold, warning_threshold, stale_threshold)
-                };
+                // Create configuration from CLI arguments and environment variables only
+                let status_config = StatusConfig::from_args_and_env(online_threshold, warning_threshold, stale_threshold);
 
                 // Client: list devices or topics
                 list::run(
@@ -145,16 +124,15 @@ async fn main() -> anyhow::Result<()> {
         Commands::Config { action } => {
             // Configuration management
             match action {
-                ConfigAction::Show { config } => {
-                    config::show(config).await?
+                ConfigAction::Show => {
+                    show().await? // Call imported show function
                 }
                 ConfigAction::Set {
-                    config,
                     online_threshold,
                     warning_threshold,
                     stale_threshold,
                 } => {
-                    config::set(config, online_threshold, warning_threshold, stale_threshold).await?
+                    set(online_threshold, warning_threshold, stale_threshold).await? // Call imported set function
                 }
             }
         }

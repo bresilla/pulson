@@ -25,13 +25,15 @@ pub fn api_routes(
     let userinfo_route = user_info(db.clone()); // Add userinfo route
 
     let p = device_routes::ping(db.clone());
-    let la = device_routes::list_all(db.clone(), status_config.clone());
-    let lo = device_routes::list_one(db.clone(), status_config.clone());
+    let la = device_routes::list_all(db.clone());
+    let lo = device_routes::list_one(db.clone());
     let dd = device_routes::delete_device(db.clone()); // Add delete_device route
-    let config_reload = device_routes::reload_config(status_config.clone()); // Add config reload route
+    // config_reload route removed - no longer needed with purely server-based configuration
     let config_get = device_routes::get_config(status_config.clone()); // Add config get route
     let config_update = device_routes::update_config(status_config.clone(), db.clone()); // Add config update route
+    let user_config_get = device_routes::get_user_config(db.clone()); // Add user config get route
+    let user_config_set = device_routes::set_user_config(db.clone()); // Add user config set route
 
     // Routes already include /api prefix in their individual definitions
-    reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(lo).or(la).or(dd).or(config_reload).or(config_get).or(config_update)
+    reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(lo).or(la).or(dd).or(config_get).or(config_update).or(user_config_get).or(user_config_set)
 }

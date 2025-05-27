@@ -9,7 +9,7 @@ build() {
 
 # @cmd the file
 run() {
-    pulson serve --webui --root-pass "superdupersecret"
+    target/release/pulson serve --webui --root-pass "superdupersecret"
 }
 
 # @cmd mark as releaser

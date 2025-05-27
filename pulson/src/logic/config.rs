@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use chrono::{DateTime, Utc};
 use crate::logic::types::{DeviceStatus, TopicStatus};
 
@@ -25,18 +24,6 @@ impl Default for StatusConfig {
 }
 
 impl StatusConfig {
-    /// Load configuration from a TOML file, falling back to defaults if file doesn't exist
-    pub fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let path = path.as_ref();
-        if path.exists() {
-            let content = std::fs::read_to_string(path)?;
-            let config: StatusConfig = toml::from_str(&content)?;
-            Ok(config)
-        } else {
-            Ok(Self::default())
-        }
-    }
-
     /// Create configuration from command line arguments and environment variables
     pub fn from_args_and_env(
         online_threshold: Option<u64>,
@@ -74,29 +61,6 @@ impl StatusConfig {
         }
 
         config
-    }
-
-    /// Save configuration to a TOML file
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
-        let content = toml::to_string_pretty(self)?;
-        std::fs::write(path, content)?;
-        Ok(())
-    }
-
-    /// Create a default configuration file at the given path if it doesn't exist
-    pub fn ensure_default_config<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let path = path.as_ref();
-        if !path.exists() {
-            let config = Self::default();
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            config.save_to_file(path)?;
-            println!("Created default configuration file at: {}", path.display());
-            Ok(config)
-        } else {
-            Self::from_file(path)
-        }
     }
 
     /// Calculate device status based on last seen timestamp

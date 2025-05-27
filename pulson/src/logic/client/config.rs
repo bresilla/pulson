@@ -1,17 +1,46 @@
 use crate::logic::config::StatusConfig;
-use std::path::Path;
+use crate::logic::client::account::read_token;
 use colored::*;
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
 
-/// Show current configuration and thresholds
-pub async fn show(config_path: Option<String>) -> anyhow::Result<()> {
-    let config = if let Some(path) = config_path {
-        println!("{} {}", "Loading configuration from:".bright_blue().bold(), path.bright_white());
-        StatusConfig::from_file(&path)?
-    } else {
-        println!("{}", "Using default configuration:".bright_blue().bold());
-        StatusConfig::default()
-    };
+#[derive(Deserialize)]
+struct ConfigResponse {
+    online_threshold_seconds: u64,
+    warning_threshold_seconds: u64,
+    stale_threshold_seconds: u64,
+}
 
+#[derive(Serialize)]
+struct ConfigUpdateRequest {
+    online_threshold_seconds: u64,
+    warning_threshold_seconds: u64,
+    stale_threshold_seconds: u64,
+}
+
+/// Show current user configuration from server
+pub async fn show() -> anyhow::Result<()> {
+    // Fetch user configuration from server
+    match fetch_user_config().await {
+        Ok(config) => {
+            println!("{}", "Current User Configuration:".bright_blue().bold());
+            display_config(&config);
+        }
+        Err(e) => {
+            eprintln!("{} {}", "Error fetching user configuration:".red().bold(), e);
+            println!();
+            println!("{}", "Showing default configuration:".bright_blue().bold());
+            let default_config = StatusConfig::default();
+            display_config(&default_config);
+            println!();
+            println!("{}", "Note: Using default configuration. Set your personal configuration with 'pulson config set'.".yellow());
+        }
+    }
+
+    Ok(())
+}
+
+fn display_config(config: &StatusConfig) {
     println!();
     println!("{}", "Current Thresholds:".bright_green().bold());
     println!("  {} {} seconds", "Online threshold:".cyan(), config.online_threshold_seconds.to_string().bright_white());
@@ -24,13 +53,10 @@ pub async fn show(config_path: Option<String>) -> anyhow::Result<()> {
     println!("  {} Device/topic has sent pings within the warning threshold", "●".yellow());
     println!("  {} Topics have sent pings within the stale threshold", "●".bright_red());
     println!("  {} Device/topic has not sent pings beyond the warning/stale threshold", "●".red());
-
-    Ok(())
 }
 
-/// Set device status thresholds
+/// Set user configuration on server
 pub async fn set(
-    config_path: Option<String>,
     online_threshold: Option<u64>,
     warning_threshold: Option<u64>,
     stale_threshold: Option<u64>,
@@ -41,97 +67,125 @@ pub async fn set(
         return Ok(());
     }
 
-    let config_file_path = config_path.unwrap_or_else(|| {
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        format!("{}/.config/pulson/config.toml", home)
-    });
-
-    // Expand tilde if present
-    let expanded_path = if config_file_path.starts_with("~/") {
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        config_file_path.replace("~/", &format!("{}/", home))
-    } else {
-        config_file_path
-    };
-
-    // Load existing config or create default
-    let mut config = if Path::new(&expanded_path).exists() {
-        println!("{} {}", "Loading existing configuration from:".bright_blue().bold(), expanded_path.bright_white());
-        StatusConfig::from_file(&expanded_path)?
-    } else {
-        println!("{} {}", "Creating new configuration file:".bright_green().bold(), expanded_path.bright_white());
-        
-        // Create parent directory if it doesn't exist
-        if let Some(parent) = Path::new(&expanded_path).parent() {
-            std::fs::create_dir_all(parent)?;
+    // Get current user configuration from server
+    let mut current_config = match fetch_user_config().await {
+        Ok(config) => config,
+        Err(_) => {
+            println!("{}", "No existing user configuration found, using defaults as base".yellow());
+            StatusConfig::default()
         }
-        
-        StatusConfig::default()
     };
 
     // Update thresholds if provided
     if let Some(threshold) = online_threshold {
-        config.online_threshold_seconds = threshold;
+        current_config.online_threshold_seconds = threshold;
         println!("{} {} seconds", "Set online threshold to:".green(), threshold.to_string().bright_white());
     }
     
     if let Some(threshold) = warning_threshold {
-        config.warning_threshold_seconds = threshold;
+        current_config.warning_threshold_seconds = threshold;
         println!("{} {} seconds", "Set warning threshold to:".yellow(), threshold.to_string().bright_white());
     }
     
     if let Some(threshold) = stale_threshold {
-        config.stale_threshold_seconds = threshold;
+        current_config.stale_threshold_seconds = threshold;
         println!("{} {} seconds", "Set stale threshold to:".bright_red(), threshold.to_string().bright_white());
     }
 
     // Validate thresholds
-    if config.online_threshold_seconds >= config.warning_threshold_seconds {
-        eprintln!("{}", "Warning: Online threshold should be less than warning threshold".yellow().bold());
+    if current_config.online_threshold_seconds >= current_config.warning_threshold_seconds {
+        eprintln!("{}", "Error: Online threshold must be less than warning threshold".red().bold());
+        return Ok(());
     }
     
-    if config.warning_threshold_seconds >= config.stale_threshold_seconds {
-        eprintln!("{}", "Warning: Warning threshold should be less than stale threshold".yellow().bold());
+    if current_config.warning_threshold_seconds >= current_config.stale_threshold_seconds {
+        eprintln!("{}", "Error: Warning threshold must be less than stale threshold".red().bold());
+        return Ok(());
     }
 
-    // Save the configuration
-    config.save_to_file(&expanded_path)?;
-    
-    println!();
-    println!("{} {}", "Configuration saved to:".bright_green().bold(), expanded_path.bright_white());
-    
-    // Try to notify the server to reload configuration
-    if let Err(_) = notify_server_reload().await {
-        println!("{}", "Note: Could not notify running server to reload configuration".yellow());
-        println!("{}", "You may need to restart the server for changes to take effect".yellow());
-    } else {
-        println!("{}", "Server configuration reloaded successfully".bright_green());
+    // Send configuration to server
+    match update_user_config(&current_config).await {
+        Ok(_) => {
+            println!();
+            println!("{}", "User configuration updated successfully".bright_green().bold());
+            
+            // Show updated configuration
+            println!();
+            show().await?;
+        }
+        Err(e) => {
+            eprintln!("{} {}", "Failed to update user configuration:".red().bold(), e);
+        }
     }
-    
-    // Show updated configuration
-    println!();
-    show(Some(expanded_path)).await?;
 
     Ok(())
 }
 
-/// Notify the server to reload its configuration
-async fn notify_server_reload() -> anyhow::Result<()> {
-    // Use default host/port or environment variables
+/// Fetch user configuration from server
+async fn fetch_user_config() -> anyhow::Result<StatusConfig> {
+    let token = read_token()
+        .map_err(|_| anyhow::anyhow!("Not logged in. Please run 'pulson account login' first."))?;
+
     let host = std::env::var("PULSON_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
     let port = std::env::var("PULSON_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(3030); // Changed from 8080 to 3030 to match server default
+        .unwrap_or(3030);
     
-    let url = format!("http://{}:{}/api/config/reload", host, port);
+    let url = format!("http://{}:{}/api/user/config", host, port);
     
-    let client = reqwest::Client::new();
-    let response = client.post(&url).send().await?;
+    let client = Client::new();
+    let response = client
+        .get(&url)
+        .bearer_auth(&token)
+        .send()
+        .await?;
     
-    if response.status().is_success() {
-        Ok(())
-    } else {
-        Err(anyhow::anyhow!("Server returned status: {}", response.status()))
+    if !response.status().is_success() {
+        return Err(anyhow::anyhow!("Server returned status: {}", response.status()));
     }
+
+    let config_response: ConfigResponse = response.json().await?;
+    
+    Ok(StatusConfig {
+        online_threshold_seconds: config_response.online_threshold_seconds,
+        warning_threshold_seconds: config_response.warning_threshold_seconds,
+        stale_threshold_seconds: config_response.stale_threshold_seconds,
+    })
+}
+
+/// Update user configuration on server
+async fn update_user_config(config: &StatusConfig) -> anyhow::Result<()> {
+    let token = read_token()
+        .map_err(|_| anyhow::anyhow!("Not logged in. Please run 'pulson account login' first."))?;
+
+    let host = std::env::var("PULSON_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let port = std::env::var("PULSON_PORT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(3030);
+    
+    let url = format!("http://{}:{}/api/user/config", host, port);
+    
+    let request = ConfigUpdateRequest {
+        online_threshold_seconds: config.online_threshold_seconds,
+        warning_threshold_seconds: config.warning_threshold_seconds,
+        stale_threshold_seconds: config.stale_threshold_seconds,
+    };
+    
+    let client = Client::new();
+    let response = client
+        .post(&url)
+        .bearer_auth(&token)
+        .json(&request)
+        .send()
+        .await?;
+    
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(anyhow::anyhow!("Server returned status {}: {}", status, error_text));
+    }
+
+    Ok(())
 }

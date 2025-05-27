@@ -85,8 +85,8 @@ pub fn register(
 pub fn login(db: Database) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     warp::post()
         .and(warp::path!("api" / "account" / "login"))
-        .and(warp::body::json())
-        .map(move |payload: AccountPayload| {
+        .and(warp::body::json()) // Expect LoginPayload
+        .map(move |payload: LoginPayload| { // Use LoginPayload here
             let err = || {
                 with_status(
                     warp_json(&json!({ "error": "invalid credentials" })),
@@ -108,7 +108,7 @@ pub fn login(db: Database) -> impl Filter<Extract = impl warp::Reply, Error = Re
                             }
                         }
                         Ok(false) => err(),
-                        Err(status_code) => err(),
+                        Err(_status_code) => err(), // Prefixed status_code with _
                     }
                 }
                 Ok(None) => err(),
@@ -165,7 +165,7 @@ pub fn logout(db: Database) -> impl Filter<Extract = impl warp::Reply, Error = R
         .and(warp::path!("api" / "account" / "logout"))
         .and(auth)
         .and(optional::<String>("authorization"))
-        .map(move |username: String, auth_header: Option<String>| {
+        .map(move |_username: String, auth_header: Option<String>| { // Prefixed username with _
             if let Some(header) = auth_header {
                 if let Some(token_str) = header.strip_prefix("Bearer ") {
                     match revoke_token(&db, token_str) {

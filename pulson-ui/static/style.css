@@ -501,6 +501,27 @@ form button:hover {
     color: #ffffff; /* Keep text color white or as needed */
 }
 
+/* Device item borders based on status color */
+.device-item.online:hover,
+.device-item.online.selected {
+    border-color: rgb(39, 174, 96); /* Green border for online devices */
+}
+
+.device-item.warning:hover,
+.device-item.warning.selected {
+    border-color: rgb(243, 156, 18); /* Yellow/orange border for warning devices */
+}
+
+.device-item.offline:hover,
+.device-item.offline.selected {
+    border-color: rgb(231, 76, 60); /* Red border for offline devices */
+}
+
+.device-item.unknown:hover,
+.device-item.unknown.selected {
+    border-color: rgb(128, 128, 128); /* Gray border for unknown devices */
+}
+
 .device-item.selected .device-id,
 .device-item.selected .last-seen {
     color: #ffffff; /* Ensure text within selected item remains readable */
@@ -566,6 +587,27 @@ form button:hover {
 .topic-item.selected {
     border-color: #eb1c24; /* Accent color border when selected */
     /* background-color: #202025; */ /* Optional: slightly different bg for selected topic if needed */
+}
+
+/* Topic item borders based on status color */
+.topic-item.online:hover,
+.topic-item.online.selected {
+    border-color: rgb(39, 174, 96); /* Green border for online topics */
+}
+
+.topic-item.warning:hover,
+.topic-item.warning.selected {
+    border-color: rgb(243, 156, 18); /* Yellow/orange border for warning topics */
+}
+
+.topic-item.offline:hover,
+.topic-item.offline.selected {
+    border-color: rgb(231, 76, 60); /* Red border for offline topics */
+}
+
+.topic-item.unknown:hover,
+.topic-item.unknown.selected {
+    border-color: rgb(128, 128, 128); /* Gray border for unknown topics */
 }
 
 .topic-item .topic-status {

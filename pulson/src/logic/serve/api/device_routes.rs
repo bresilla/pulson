@@ -1,5 +1,5 @@
 use crate::logic::serve::auth::authenticated_user;
-use crate::logic::serve::database::{Database, store_device_data, get_device_data, list_user_devices, delete_device as db_delete_device};
+use crate::logic::serve::database::{Database, store_device_data, get_device_data, list_user_devices, delete_device as db_delete_device, get_user_config_or_default, set_user_config as db_set_user_config};
 use crate::logic::config::StatusConfig;
 use chrono::Utc;
 use serde_json;
@@ -17,11 +17,6 @@ pub struct PingPayload {
 #[derive(serde::Deserialize)]
 pub struct DeleteDevicePayload {
     pub device_id: String,
-}
-
-#[derive(serde::Deserialize)]
-struct PingData {
-    topic: String,
 }
 
 #[derive(serde::Deserialize)]
@@ -69,7 +64,6 @@ pub fn ping(
 
 pub fn list_all(
     db: Database,
-    status_config: Arc<Mutex<StatusConfig>>,
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone());
     warp::get()
@@ -77,8 +71,8 @@ pub fn list_all(
         .and(warp::path::end())
         .and(auth)
         .map(move |username: String| {
-            // Get devices for the authenticated user
-            let config = status_config.lock().unwrap().clone();
+            // Get user's personal configuration
+            let config = get_user_config_or_default(&db, &username);
             match list_user_devices(&db, &username, &config) {
                 Ok(devices_json) => warp_json(&devices_json),
                 Err(_) => {
@@ -91,7 +85,6 @@ pub fn list_all(
 
 pub fn list_one(
     db: Database,
-    status_config: Arc<Mutex<StatusConfig>>,
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone());
     warp::get()
@@ -100,7 +93,7 @@ pub fn list_one(
         .map(move |device_id: String, username: String| {
             // Include username in device_id to get user-specific device
             let full_device_id = format!("{}:{}", username, device_id);
-            let config = status_config.lock().unwrap().clone();
+            let config = get_user_config_or_default(&db, &username);
             
             match get_device_data(&db, &full_device_id, &config) {
                 Ok(Some(topics_json)) => {
@@ -163,39 +156,7 @@ pub fn delete_device(
         })
 }
 
-pub fn reload_config(
-    status_config: Arc<Mutex<StatusConfig>>,
-) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
-    warp::post()
-        .and(warp::path!("api" / "config" / "reload"))
-        .and(warp::path::end())
-        .map(move || {
-            // Get default configuration path
-            let config_path = {
-                let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-                format!("{}/.config/pulson/config.toml", home)
-            };
-            
-            match StatusConfig::from_file(&config_path) {
-                Ok(new_config) => {
-                    let mut config = status_config.lock().unwrap();
-                    *config = new_config;
-                    println!("Configuration reloaded successfully from: {}", config_path);
-                    with_status(
-                        warp_json(&serde_json::json!({ "message": "configuration reloaded" })),
-                        StatusCode::OK,
-                    )
-                }
-                Err(e) => {
-                    eprintln!("Failed to reload configuration from {}: {}", config_path, e);
-                    with_status(
-                        warp_json(&serde_json::json!({ "error": "failed to reload configuration" })),
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                    )
-                }
-            }
-        })
-}
+// reload_config route removed - no longer needed with purely server-based configuration
 
 pub fn get_config(
     status_config: Arc<Mutex<StatusConfig>>,
@@ -254,23 +215,90 @@ pub fn update_config(
                 config.stale_threshold_seconds = payload.stale_threshold_seconds;
             }
 
-            // Also save to configuration file
-            let config_path = {
-                let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-                format!("{}/.config/pulson/config.toml", home)
-            };
-            
-            let config_to_save = status_config.lock().unwrap().clone();
-            if let Err(e) = config_to_save.save_to_file(&config_path) {
-                eprintln!("Warning: Failed to save configuration to file {}: {}", config_path, e);
-                // Continue anyway since in-memory config was updated
-            }
-
             with_status(
                 warp_json(&serde_json::json!({ 
                     "message": "Configuration updated successfully" 
                 })),
                 StatusCode::OK,
             )
+        })
+}
+
+/// GET /api/user/config - Get user's personal configuration
+pub fn get_user_config(
+    db: Database,
+) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+    let auth = authenticated_user(db.clone());
+    warp::get()
+        .and(warp::path!("api" / "user" / "config"))
+        .and(warp::path::end())
+        .and(auth)
+        .map(move |username: String| {
+            let config = get_user_config_or_default(&db, &username);
+            with_status(
+                warp_json(&serde_json::json!({
+                    "online_threshold_seconds": config.online_threshold_seconds,
+                    "warning_threshold_seconds": config.warning_threshold_seconds,
+                    "stale_threshold_seconds": config.stale_threshold_seconds
+                })),
+                StatusCode::OK,
+            )
+        })
+}
+
+/// POST /api/user/config - Set user's personal configuration
+pub fn set_user_config(
+    db: Database,
+) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+    let auth = authenticated_user(db.clone());
+    warp::post()
+        .and(warp::path!("api" / "user" / "config"))
+        .and(warp::path::end())
+        .and(auth)
+        .and(warp_body_json())
+        .map(move |username: String, payload: ConfigUpdateRequest| {
+            // Validate thresholds
+            if payload.online_threshold_seconds >= payload.warning_threshold_seconds {
+                return with_status(
+                    warp_json(&serde_json::json!({ 
+                        "error": "Online threshold must be less than warning threshold" 
+                    })),
+                    StatusCode::BAD_REQUEST,
+                );
+            }
+            
+            if payload.warning_threshold_seconds >= payload.stale_threshold_seconds {
+                return with_status(
+                    warp_json(&serde_json::json!({ 
+                        "error": "Warning threshold must be less than stale threshold" 
+                    })),
+                    StatusCode::BAD_REQUEST,
+                );
+            }
+
+            let config = StatusConfig {
+                online_threshold_seconds: payload.online_threshold_seconds,
+                warning_threshold_seconds: payload.warning_threshold_seconds,
+                stale_threshold_seconds: payload.stale_threshold_seconds,
+            };
+
+            match db_set_user_config(&db, &username, &config) {
+                Ok(_) => {
+                    with_status(
+                        warp_json(&serde_json::json!({ 
+                            "message": "User configuration updated successfully" 
+                        })),
+                        StatusCode::OK,
+                    )
+                }
+                Err(_) => {
+                    with_status(
+                        warp_json(&serde_json::json!({ 
+                            "error": "Failed to update user configuration" 
+                        })),
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                }
+            }
         })
 }

@@ -51,6 +51,19 @@ pub fn init_database<P: AsRef<Path>>(db_path: P) -> anyhow::Result<Database> {
         [],
     )?;
 
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS user_config (
+            username TEXT PRIMARY KEY,
+            online_threshold_seconds INTEGER NOT NULL DEFAULT 30,
+            warning_threshold_seconds INTEGER NOT NULL DEFAULT 300,
+            stale_threshold_seconds INTEGER NOT NULL DEFAULT 3600,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
     Ok(Arc::new(Mutex::new(conn)))
 }
 
@@ -176,6 +189,66 @@ pub fn revoke_token(db: &Database, token: &str) -> Result<bool, StatusCode> {
     }
 }
 
+// User configuration management functions
+pub fn get_user_config(db: &Database, username: &str) -> Result<Option<crate::logic::config::StatusConfig>, StatusCode> {
+    let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let mut stmt = conn.prepare("SELECT online_threshold_seconds, warning_threshold_seconds, stale_threshold_seconds FROM user_config WHERE username = ?1")
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let mut rows = stmt.query_map([username], |row| {
+        Ok(crate::logic::config::StatusConfig {
+            online_threshold_seconds: row.get::<_, u64>(0)?,
+            warning_threshold_seconds: row.get::<_, u64>(1)?,
+            stale_threshold_seconds: row.get::<_, u64>(2)?,
+        })
+    }).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    match rows.next() {
+        Some(Ok(config)) => Ok(Some(config)),
+        Some(Err(_)) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        None => Ok(None),
+    }
+}
+
+pub fn set_user_config(db: &Database, username: &str, config: &crate::logic::config::StatusConfig) -> Result<(), StatusCode> {
+    let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    // Validate thresholds
+    if config.online_threshold_seconds >= config.warning_threshold_seconds {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    if config.warning_threshold_seconds >= config.stale_threshold_seconds {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    
+    match conn.execute(
+        "INSERT INTO user_config (username, online_threshold_seconds, warning_threshold_seconds, stale_threshold_seconds, updated_at) 
+         VALUES (?1, ?2, ?3, ?4, CURRENT_TIMESTAMP)
+         ON CONFLICT(username) DO UPDATE SET 
+         online_threshold_seconds = excluded.online_threshold_seconds,
+         warning_threshold_seconds = excluded.warning_threshold_seconds,
+         stale_threshold_seconds = excluded.stale_threshold_seconds,
+         updated_at = excluded.updated_at",
+        [
+            username,
+            &config.online_threshold_seconds.to_string(),
+            &config.warning_threshold_seconds.to_string(),
+            &config.stale_threshold_seconds.to_string(),
+        ],
+    ) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+pub fn get_user_config_or_default(db: &Database, username: &str) -> crate::logic::config::StatusConfig {
+    match get_user_config(db, username) {
+        Ok(Some(config)) => config,
+        Ok(None) | Err(_) => crate::logic::config::StatusConfig::default(),
+    }
+}
+
 // Device management functions
 pub fn store_device_data(db: &Database, device_id: &str, name: Option<&str>, data: &str, timestamp: &str) -> Result<(), StatusCode> {
     let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -262,28 +335,6 @@ pub fn get_device_data(db: &Database, device_id: &str, status_config: &crate::lo
     } else {
         Ok(Some(serde_json::to_string(&topics).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?))
     }
-}
-
-pub fn list_all_devices(db: &Database) -> Result<Value, StatusCode> {
-    let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    let mut stmt = conn.prepare("SELECT id, name, last_seen FROM devices ORDER BY last_seen DESC")
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    let device_iter = stmt.query_map([], |row| {
-        Ok(json!({
-            "device_id": row.get::<_, String>(0)?,
-            "name": row.get::<_, Option<String>>(1)?,
-            "last_seen": row.get::<_, String>(2)?
-        }))
-    }).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    let mut devices = Vec::new();
-    for device in device_iter {
-        devices.push(device.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?);
-    }
-    
-    Ok(json!(devices))
 }
 
 pub fn list_user_devices(db: &Database, username: &str, status_config: &crate::logic::config::StatusConfig) -> Result<Value, StatusCode> {

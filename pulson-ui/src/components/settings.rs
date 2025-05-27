@@ -431,7 +431,11 @@ async fn fetch_user_data(token: &str) -> Result<UserData, String> {
 }
 
 async fn fetch_config_data() -> Result<ConfigData, String> {
-    let request = Request::get("/api/config")
+    let token = LocalStorage::get::<String>("pulson_token")
+        .map_err(|_| "No authentication token found".to_string())?;
+
+    let request = Request::get("/api/user/config")
+        .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await
         .map_err(|e| format!("Network error: {}", e))?;
@@ -456,7 +460,7 @@ async fn update_config_data(online: u64, warning: u64, stale: u64) -> Result<(),
         stale_threshold_seconds: stale,
     };
 
-    let request = Request::post("/api/config/update")
+    let request = Request::post("/api/user/config")
         .header("Authorization", &format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .body(serde_json::to_string(&payload).map_err(|e| format!("Serialization error: {}", e))?)

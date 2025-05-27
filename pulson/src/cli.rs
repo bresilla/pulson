@@ -172,16 +172,9 @@ pub enum AccountAction {
 #[derive(Subcommand)]
 pub enum ConfigAction {
     /// Show current configuration and thresholds
-    Show {
-        /// Path to configuration file (supports `~`)
-        #[arg(short, long)]
-        config: Option<String>,
-    },
+    Show,
     /// Set device status thresholds
     Set {
-        /// Path to configuration file (supports `~`)
-        #[arg(short, long)]
-        config: Option<String>,
         /// Online threshold in seconds
         #[arg(long)]
         online_threshold: Option<u64>,
