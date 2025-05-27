@@ -20,6 +20,7 @@ pub struct TopicInfo {
     pub topic: String,
     pub last_seen: String,
     pub status: String, // Server-calculated status: "Active", "Recent", "Stale", "Inactive"
+    pub data_types: Vec<String>, // List of data types available for this topic
 }
 
 #[derive(Clone, PartialEq, Deserialize, Debug)] // Added Debug for easier inspection
@@ -403,6 +404,13 @@ pub fn dashboard() -> Html {
                                                 <div class="topic-content">
                                                     <div class="topic-header">
                                                         <span class="topic-name">{&topic.topic}</span>
+                                                        <div class="data-type-labels">
+                                                            {for topic.data_types.iter().map(|data_type| {
+                                                                html! {
+                                                                    <span class="data-type-label">{data_type}</span>
+                                                                }
+                                                            })}
+                                                        </div>
                                                     </div>
                                                     <div class="topic-info">
                                                         <small class="last-seen">

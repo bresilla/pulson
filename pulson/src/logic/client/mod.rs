@@ -3,3 +3,4 @@ pub mod list;
 pub mod ping;
 pub mod device;
 pub mod config;
+pub mod data;

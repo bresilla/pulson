@@ -661,13 +661,34 @@ form button:hover {
 
 .topic-item .topic-name {
     font-weight: 500;
+    flex-grow: 1; /* Allow topic name to take available space */
 }
 
-.topic-item .topic-info {
+/* Data Type Labels */
+.data-type-labels {
     display: flex;
-    flex-direction: column; /* Stack last-seen and exact-time */
-    font-size: 0.85em;
-    color: #a0a0a0;
+    gap: 4px;
+    margin-left: 8px;
+}
+
+.data-type-label {
+    background-color: rgba(235, 28, 36, 0.15);
+    color: #eb1c24;
+    font-size: 0.7em;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    border: 1px solid rgba(235, 28, 36, 0.3);
+}
+
+/* Structured data labels - use blue theme */
+.data-type-label:not(:first-child) {
+    background-color: rgba(52, 152, 219, 0.15);
+    color: #3498db;
+    border-color: rgba(52, 152, 219, 0.3);
 }
 
 .topic-details {

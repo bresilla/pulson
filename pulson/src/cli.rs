@@ -27,6 +27,14 @@ pub enum StatusFilter {
     Inactive,
 }
 
+#[derive(Clone, ValueEnum)]
+pub enum DataType {
+    Map,  // For GNSS/GPS coordinates 
+    Sensor, // For sensor readings
+    Event,  // For event data
+    Message, // For text messages
+}
+
 /// realtime system/robot monitoring and tracing
 #[derive(Parser)]
 #[command(name = "pulson")]
@@ -85,6 +93,22 @@ pub enum Commands {
         device_id: String,
         #[arg(short = 't', long)]
         topic: String,
+    },
+
+    /// Send structured data for a given device_id and topic
+    Data {
+        /// Type of data being sent
+        #[arg(long)]
+        r#type: DataType,
+        /// Device identifier
+        #[arg(short = 'd', long)]
+        device_id: String,
+        /// Topic for the data
+        #[arg(short = 't', long)]
+        topic: String,
+        /// JSON data payload
+        #[arg(value_name = "JSON_DATA")]
+        data: String,
     },
 
     /// User account management (register, login, logout, delete, list)

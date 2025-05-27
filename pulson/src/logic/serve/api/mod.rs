@@ -25,6 +25,7 @@ pub fn api_routes(
     let userinfo_route = user_info(db.clone()); // Add userinfo route
 
     let p = device_routes::ping(db.clone());
+    let data_route = device_routes::data(db.clone()); // Add data route
     let la = device_routes::list_all(db.clone());
     let lo = device_routes::list_one(db.clone());
     let dd = device_routes::delete_device(db.clone()); // Add delete_device route
@@ -35,7 +36,8 @@ pub fn api_routes(
     let user_config_set = device_routes::set_user_config(db.clone()); // Add user config set route
     let device_history = device_routes::get_device_history(db.clone()); // Add pulse history route
     let device_stats = device_routes::get_device_stats(db.clone()); // Add pulse stats route
+    let device_data_latest = device_routes::get_device_data_latest(db.clone()); // Add device data route
 
     // Routes already include /api prefix in their individual definitions
-    reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(lo).or(la).or(dd).or(config_get).or(config_update).or(user_config_get).or(user_config_set).or(device_history).or(device_stats)
+    reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(data_route).or(lo).or(la).or(dd).or(config_get).or(config_update).or(user_config_get).or(user_config_set).or(device_history).or(device_stats).or(device_data_latest)
 }

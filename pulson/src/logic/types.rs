@@ -32,4 +32,5 @@ pub struct TopicInfo {
     pub topic: String,
     pub last_seen: DateTime<Utc>,
     pub status: TopicStatus,
+    pub data_types: Vec<String>, // List of data types available for this topic
 }

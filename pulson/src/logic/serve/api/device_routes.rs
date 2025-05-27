@@ -1,5 +1,5 @@
 use crate::logic::serve::auth::authenticated_user;
-use crate::logic::serve::database::{Database, store_device_data, get_device_data, list_user_devices, delete_device as db_delete_device, get_user_config_or_default, set_user_config as db_set_user_config, get_pulse_history, get_pulse_stats};
+use crate::logic::serve::database::{Database, store_device_data, get_device_data, list_user_devices, delete_device as db_delete_device, get_user_config_or_default, set_user_config as db_set_user_config, get_pulse_history, get_pulse_stats, store_device_data_payload, get_device_latest_data};
 use crate::logic::config::StatusConfig;
 use chrono::Utc;
 use serde_json;
@@ -12,6 +12,14 @@ use warp::{
 pub struct PingPayload {
     pub device_id: String,
     pub topic: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct DataPayload {
+    pub device_id: String,
+    pub topic: String,
+    pub data_type: String,
+    pub data: serde_json::Value,
 }
 
 #[derive(serde::Deserialize)]
@@ -55,6 +63,39 @@ pub fn ping(
                     eprintln!("Failed to store ping for device {} (user: {})", payload.device_id, username);
                     with_status(
                         warp_json(&serde_json::json!({ "error": "ping failed" })),
+                        status_code,
+                    )
+                }
+            }
+        })
+}
+
+pub fn data(
+    db: Database,
+) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+    let auth = authenticated_user(db.clone());
+    warp::post()
+        .and(warp::path!("api" / "data"))
+        .and(auth)
+        .and(warp_body_json())
+        .map(move |username: String, payload: DataPayload| {
+            let ts = Utc::now().to_rfc3339();
+            // Include username in device_id to isolate user data
+            let device_id = format!("{}:{}", username, payload.device_id);
+            
+            match store_device_data_payload(&db, &device_id, Some(&payload.device_id), &payload.topic, &payload.data_type, &payload.data, &ts) {
+                Ok(_) => {
+                    println!("Data from device {} (user: {}) - type: {}, topic: {}", 
+                        payload.device_id, username, payload.data_type, payload.topic);
+                    with_status(
+                        warp_json(&serde_json::json!({ "message": "data received" })),
+                        StatusCode::OK,
+                    )
+                }
+                Err(status_code) => {
+                    eprintln!("Failed to store data for device {} (user: {})", payload.device_id, username);
+                    with_status(
+                        warp_json(&serde_json::json!({ "error": "data storage failed" })),
                         status_code,
                     )
                 }
@@ -360,6 +401,39 @@ pub fn get_device_stats(
                     with_status(
                         warp_json(&serde_json::json!({ 
                             "error": "Failed to get pulse statistics" 
+                        })),
+                        status_code,
+                    )
+                }
+            }
+        })
+}
+
+/// GET /api/devices/{device_id}/data?topic={topic_name}&type={data_type} - Get latest data for a device
+pub fn get_device_data_latest(
+    db: Database,
+) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+    let auth = authenticated_user(db.clone());
+    warp::get()
+        .and(warp::path!("api" / "devices" / String / "data"))
+        .and(warp::query::<std::collections::HashMap<String, String>>())
+        .and(auth)
+        .map(move |device_id: String, params: std::collections::HashMap<String, String>, username: String| {
+            // Include username in device_id to get user-specific device
+            let full_device_id = format!("{}:{}", username, device_id);
+            
+            let topic = params.get("topic").map(|s| s.as_str());
+            let data_type = params.get("type").map(|s| s.as_str());
+            
+            match get_device_latest_data(&db, &full_device_id, topic, data_type) {
+                Ok(data_response) => {
+                    with_status(warp_json(&data_response), StatusCode::OK)
+                }
+                Err(status_code) => {
+                    eprintln!("Failed to get latest data for device {} (user: {})", device_id, username);
+                    with_status(
+                        warp_json(&serde_json::json!({ 
+                            "error": "Failed to get latest data" 
                         })),
                         status_code,
                     )

@@ -77,6 +77,21 @@ pub fn init_database<P: AsRef<Path>>(db_path: P) -> anyhow::Result<Database> {
         [],
     )?;
 
+    // Create table for structured data storage
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS device_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT NOT NULL,
+            topic TEXT NOT NULL,
+            data_type TEXT NOT NULL,
+            data_payload TEXT NOT NULL,
+            timestamp DATETIME NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(device_id) REFERENCES devices(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
     // Create indexes for better query performance
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_pulse_history_device_timestamp 
@@ -87,6 +102,18 @@ pub fn init_database<P: AsRef<Path>>(db_path: P) -> anyhow::Result<Database> {
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_pulse_history_topic_timestamp 
          ON pulse_history(device_id, topic, timestamp)",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_device_data_device_timestamp 
+         ON device_data(device_id, timestamp)",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_device_data_type_timestamp 
+         ON device_data(device_id, data_type, timestamp)",
         [],
     )?;
 
@@ -341,6 +368,7 @@ pub fn get_device_data(db: &Database, device_id: &str, status_config: &crate::lo
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
     let topic_iter = topics_stmt.query_map([device_id], |row| {
+        let topic_name = row.get::<_, String>(0)?;
         let last_seen_str = row.get::<_, String>(1)?;
         let last_seen = chrono::DateTime::parse_from_rfc3339(&last_seen_str)
             .map_err(|_| rusqlite::Error::FromSqlConversionFailure(
@@ -350,16 +378,34 @@ pub fn get_device_data(db: &Database, device_id: &str, status_config: &crate::lo
         
         let status = status_config.calculate_topic_status(&last_seen);
         
-        Ok(json!({
-            "topic": row.get::<_, String>(0)?,
-            "last_seen": last_seen_str,
-            "status": status
-        }))
+        Ok((topic_name, last_seen_str, status))
     }).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
     let mut topics = Vec::new();
-    for topic in topic_iter {
-        topics.push(topic.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?);
+    for topic_result in topic_iter {
+        let (topic_name, last_seen_str, status) = topic_result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+        // Get data types for this topic from device_data table
+        let mut data_types_stmt = conn.prepare(
+            "SELECT DISTINCT data_type FROM device_data WHERE device_id = ?1 AND topic = ?2"
+        ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+        let data_types_iter = data_types_stmt.query_map([device_id, &topic_name], |row| {
+            Ok(row.get::<_, String>(0)?)
+        }).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+        let mut data_types = vec!["PULSE".to_string()]; // Always include PULSE since it's in topics table
+        for data_type_result in data_types_iter {
+            let data_type = data_type_result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            data_types.push(data_type);
+        }
+        
+        topics.push(json!({
+            "topic": topic_name,
+            "last_seen": last_seen_str,
+            "status": status,
+            "data_types": data_types
+        }));
     }
     
     if topics.is_empty() {
@@ -555,5 +601,130 @@ pub fn get_pulse_stats(db: &Database, device_id: &str, time_range: &str) -> Resu
         "end_time": now.to_rfc3339(),
         "total_pulses": total_count,
         "stats": stats_data // Changed from "topics" to "stats"
+    }))
+}
+
+/// Store structured data for a device
+pub fn store_device_data_payload(
+    db: &Database, 
+    device_id: &str, 
+    name: Option<&str>, 
+    topic: &str,
+    data_type: &str,
+    data_payload: &serde_json::Value,
+    timestamp: &str
+) -> Result<(), StatusCode> {
+    let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    // Handle device insertion/update
+    if let Some(device_name) = name {
+        conn.execute(
+            "INSERT INTO devices (id, name, last_seen) VALUES (?1, ?2, ?3) 
+             ON CONFLICT(id) DO UPDATE SET name = excluded.name, last_seen = excluded.last_seen",
+            [device_id, device_name, timestamp],
+        ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    } else {
+        conn.execute(
+            "INSERT INTO devices (id, name, last_seen) VALUES (?1, NULL, ?2) 
+             ON CONFLICT(id) DO UPDATE SET last_seen = excluded.last_seen",
+            [device_id, timestamp],
+        ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    }
+    
+    // Insert or update the topic record
+    conn.execute(
+        "INSERT INTO topics (device_id, topic, last_seen) VALUES (?1, ?2, ?3) 
+         ON CONFLICT(device_id, topic) DO UPDATE SET last_seen = excluded.last_seen",
+        [device_id, topic, timestamp],
+    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    // Store the structured data
+    conn.execute(
+        "INSERT INTO device_data (device_id, topic, data_type, data_payload, timestamp) 
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        [
+            device_id, 
+            topic, 
+            data_type, 
+            &data_payload.to_string(), 
+            timestamp
+        ],
+    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    Ok(())
+}
+
+/// Get latest data for a device and topic
+pub fn get_device_latest_data(
+    db: &Database, 
+    device_id: &str, 
+    topic: Option<&str>, 
+    data_type: Option<&str>
+) -> Result<Value, StatusCode> {
+    let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let (query, params): (String, Vec<String>) = match (topic, data_type) {
+        (Some(t), Some(dt)) => (
+            "SELECT topic, data_type, data_payload, timestamp 
+             FROM device_data 
+             WHERE device_id = ?1 AND topic = ?2 AND data_type = ?3 
+             ORDER BY timestamp DESC 
+             LIMIT 10".to_string(),
+            vec![device_id.to_string(), t.to_string(), dt.to_string()]
+        ),
+        (Some(t), None) => (
+            "SELECT topic, data_type, data_payload, timestamp 
+             FROM device_data 
+             WHERE device_id = ?1 AND topic = ?2 
+             ORDER BY timestamp DESC 
+             LIMIT 10".to_string(),
+            vec![device_id.to_string(), t.to_string()]
+        ),
+        (None, Some(dt)) => (
+            "SELECT topic, data_type, data_payload, timestamp 
+             FROM device_data 
+             WHERE device_id = ?1 AND data_type = ?2 
+             ORDER BY timestamp DESC 
+             LIMIT 10".to_string(),
+            vec![device_id.to_string(), dt.to_string()]
+        ),
+        (None, None) => (
+            "SELECT topic, data_type, data_payload, timestamp 
+             FROM device_data 
+             WHERE device_id = ?1 
+             ORDER BY timestamp DESC 
+             LIMIT 10".to_string(),
+            vec![device_id.to_string()]
+        ),
+    };
+    
+    let mut stmt = conn.prepare(&query)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let params_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
+    let data_iter = stmt.query_map(params_refs.as_slice(), |row| {
+        let data_payload_str: String = row.get(2)?;
+        let data_payload: serde_json::Value = serde_json::from_str(&data_payload_str)
+            .map_err(|_| rusqlite::Error::FromSqlConversionFailure(
+                2, rusqlite::types::Type::Text, 
+                Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid JSON"))
+            ))?;
+        
+        Ok(json!({
+            "topic": row.get::<_, String>(0)?,
+            "data_type": row.get::<_, String>(1)?,
+            "data": data_payload,
+            "timestamp": row.get::<_, String>(3)?
+        }))
+    }).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let mut data_records = Vec::new();
+    for record in data_iter {
+        data_records.push(record.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?);
+    }
+    
+    Ok(json!({
+        "device_id": device_id,
+        "data": data_records
     }))
 }

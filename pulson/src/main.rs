@@ -5,7 +5,7 @@ mod logic;
 
 use clap::Parser;
 use cli::{AccountAction, Cli, Commands, DeviceAction, ConfigAction};
-use crate::logic::client::{account, list, ping, device};
+use crate::logic::client::{account, list, ping, device, data};
 use crate::logic::client::config::{show, set}; // Import show and set directly using crate path
 use logic::config::StatusConfig;
 use std::sync::{Arc, Mutex};
@@ -27,7 +27,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Serve { .. } => None,
         Commands::Account { .. } => None,
         Commands::Config { .. } => None, // Config commands work with local files, no auth needed
-        Commands::Device { .. } | Commands::Ping { .. } => match account::read_token() {
+        Commands::Device { .. } | Commands::Ping { .. } | Commands::Data { .. } => match account::read_token() {
             Ok(t) => Some(t),
             Err(_) => {
                 eprintln!("✗ Not logged in: please run `pulson account login` first`");
@@ -102,6 +102,17 @@ async fn main() -> anyhow::Result<()> {
         Commands::Ping { device_id, topic } => {
             // Client: send a ping
             ping::run(host, port, device_id, topic, token.unwrap()).await?
+        }
+
+        Commands::Data { r#type, device_id, topic, data } => {
+            // Client: send structured data
+            let data_type_str = match r#type {
+                cli::DataType::Map => "Map",
+                cli::DataType::Sensor => "Sensor", 
+                cli::DataType::Event => "Event",
+                cli::DataType::Message => "Message",
+            };
+            data::run(host, port, device_id, topic, data_type_str.to_string(), data, token.unwrap()).await?
         }
 
         Commands::Account { action } => {
