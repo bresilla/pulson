@@ -184,3 +184,22 @@ pub fn reload_config(
             }
         })
 }
+
+pub fn get_config(
+    status_config: Arc<Mutex<StatusConfig>>,
+) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
+    warp::get()
+        .and(warp::path!("api" / "config"))
+        .and(warp::path::end())
+        .map(move || {
+            let config = status_config.lock().unwrap().clone();
+            with_status(
+                warp_json(&serde_json::json!({
+                    "online_threshold_seconds": config.online_threshold_seconds,
+                    "warning_threshold_seconds": config.warning_threshold_seconds,
+                    "stale_threshold_seconds": config.stale_threshold_seconds
+                })),
+                StatusCode::OK,
+            )
+        })
+}

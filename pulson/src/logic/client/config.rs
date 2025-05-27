@@ -122,7 +122,7 @@ async fn notify_server_reload() -> anyhow::Result<()> {
     let port = std::env::var("PULSON_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(8080);
+        .unwrap_or(3030); // Changed from 8080 to 3030 to match server default
     
     let url = format!("http://{}:{}/api/config/reload", host, port);
     

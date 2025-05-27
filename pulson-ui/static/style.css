@@ -234,6 +234,55 @@ form button:hover {
     border-top: 1px solid var(--border-color);
 }
 
+/* Configuration Section Styles */
+.config-section {
+    padding: 15px 20px;
+    border-top: 1px solid var(--border-color);
+    background-color: rgba(46, 46, 54, 0.5);
+}
+
+.config-section h3 {
+    font-size: 1rem;
+    margin-bottom: 12px;
+    color: #eb1c24;
+    font-weight: 600;
+    text-align: center;
+}
+
+.config-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.config-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    background-color: rgba(60, 60, 70, 0.3);
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.config-label {
+    color: #b8b8b8;
+    font-weight: 500;
+}
+
+.config-value {
+    color: #f0f0f0;
+    font-weight: 600;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.config-loading {
+    text-align: center;
+    padding: 10px;
+    color: #888;
+    font-style: italic;
+}
+
 /* User Info Styles (Sidebar Footer) */
 .user-info-container {
     position: relative; /* Required for absolute positioning of popup */

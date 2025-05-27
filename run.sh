@@ -17,7 +17,7 @@ run() {
 # @arg type![patch|minor|major] Release type
 release() {
     # echo "release $1"
-    CURRENT_VERSION=$(grep '^version = ' Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+    CURRENT_VERSION=$(grep '^version = 'Cargo.toml | sed -E 's/version = "(.*)"/\1/')
     IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
     echo $argc_type
     case $argc_type in

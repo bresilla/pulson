@@ -29,7 +29,8 @@ pub fn api_routes(
     let lo = device_routes::list_one(db.clone(), status_config.clone());
     let dd = device_routes::delete_device(db.clone()); // Add delete_device route
     let config_reload = device_routes::reload_config(status_config.clone()); // Add config reload route
+    let config_get = device_routes::get_config(status_config.clone()); // Add config get route
 
     // Routes already include /api prefix in their individual definitions
-    reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(lo).or(la).or(dd).or(config_reload)
+    reg.or(log).or(logout_route).or(del).or(list).or(userinfo_route).or(p).or(lo).or(la).or(dd).or(config_reload).or(config_get)
 }
