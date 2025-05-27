@@ -59,6 +59,18 @@ pub enum Commands {
         /// Also serve the Web UI from `pulson-ui/ui/dist`
         #[arg(long)]
         webui: bool,
+        /// Path to configuration file (supports `~`)
+        #[arg(short, long)]
+        config: Option<String>,
+        /// Online threshold in seconds (overrides config file)
+        #[arg(long)]
+        online_threshold: Option<u64>,
+        /// Warning threshold in seconds (overrides config file)  
+        #[arg(long)]
+        warning_threshold: Option<u64>,
+        /// Stale threshold in seconds (overrides config file)
+        #[arg(long)]
+        stale_threshold: Option<u64>,
     },
 
     /// Device management (list, delete)
@@ -79,6 +91,12 @@ pub enum Commands {
     Account {
         #[command(subcommand)]
         action: AccountAction,
+    },
+
+    /// Configuration management (view, set thresholds)
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
     },
 }
 
@@ -106,6 +124,18 @@ pub enum DeviceAction {
         /// Show extended information (descriptions, counts, etc.)
         #[arg(short = 'x', long)]
         extended: bool,
+        /// Path to configuration file (supports `~`)
+        #[arg(short, long)]
+        config: Option<String>,
+        /// Online threshold in seconds (overrides config file)
+        #[arg(long)]
+        online_threshold: Option<u64>,
+        /// Warning threshold in seconds (overrides config file)  
+        #[arg(long)]
+        warning_threshold: Option<u64>,
+        /// Stale threshold in seconds (overrides config file)
+        #[arg(long)]
+        stale_threshold: Option<u64>,
     },
     /// Delete a device by its ID
     Delete {
@@ -137,4 +167,29 @@ pub enum AccountAction {
         username: String,
     },
     List,
+}
+
+#[derive(Subcommand)]
+pub enum ConfigAction {
+    /// Show current configuration and thresholds
+    Show {
+        /// Path to configuration file (supports `~`)
+        #[arg(short, long)]
+        config: Option<String>,
+    },
+    /// Set device status thresholds
+    Set {
+        /// Path to configuration file (supports `~`)
+        #[arg(short, long)]
+        config: Option<String>,
+        /// Online threshold in seconds
+        #[arg(long)]
+        online_threshold: Option<u64>,
+        /// Warning threshold in seconds  
+        #[arg(long)]
+        warning_threshold: Option<u64>,
+        /// Stale threshold in seconds
+        #[arg(long)]
+        stale_threshold: Option<u64>,
+    },
 }

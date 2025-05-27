@@ -11,12 +11,14 @@ use yew_router::prelude::*;
 pub struct DeviceInfo {
     pub device_id: String,
     pub last_seen: String, // Keep as String since API returns mixed formats
+    pub status: String, // Server-calculated status: "Online", "Warning", "Offline"
 }
 
 #[derive(Clone, PartialEq, Deserialize)]
 pub struct TopicInfo {
     pub topic: String,
     pub last_seen: String,
+    pub status: String, // Server-calculated status: "Active", "Recent", "Stale", "Inactive"
 }
 
 #[derive(Clone, PartialEq, Deserialize, Debug)] // Added Debug for easier inspection
@@ -272,7 +274,7 @@ pub fn dashboard() -> Html {
                                         on_select.emit(device_id.clone());
                                     })
                                 };
-                                let status_class = get_device_status_class(&device.last_seen);
+                                let status_class = get_device_status_class(&device.status);
                                 html! {
                                     <div
                                         class={classes!("device-item", is_selected.then(|| "selected"), status_class)}
@@ -367,7 +369,7 @@ pub fn dashboard() -> Html {
                         } else {
                             <div class="topic-list">
                                 {for topics.iter().map(|topic| {
-                                    let status_class = get_topic_status_class(&topic.last_seen);
+                                    let status_class = get_topic_status_class(&topic.status);
                                     let topic_name = topic.topic.clone();
                                     let is_topic_selected = selected_topic.as_ref() == Some(&topic_name);
                                     let on_click_topic = {
@@ -485,40 +487,22 @@ async fn fetch_topics(device_id: &str) -> Result<Vec<TopicInfo>, String> {
     }
 }
 
-fn get_device_status_class(last_seen: &str) -> &'static str {
-    if let Ok(timestamp) = parse_timestamp(last_seen) {
-        let now = Date::now();
-        let diff_ms = now - timestamp;
-        let diff_seconds = diff_ms / 1000.0;
-
-        if diff_seconds < 30.0 {
-            "online"
-        } else if diff_seconds < 300.0 {
-            // 5 minutes
-            "warning"
-        } else {
-            "offline"
-        }
-    } else {
-        "unknown"
+fn get_device_status_class(status: &str) -> &'static str {
+    match status {
+        "Online" => "online",
+        "Warning" => "warning", 
+        "Offline" => "offline",
+        _ => "unknown",
     }
 }
 
-fn get_topic_status_class(last_seen: &str) -> &'static str {
-    if let Ok(timestamp) = parse_timestamp(last_seen) {
-        let now = Date::now();
-        let diff_ms = now - timestamp;
-        let diff_seconds = diff_ms / 1000.0;
-
-        if diff_seconds < 30.0 { // e.g., less than 30 seconds
-            "online"
-        } else if diff_seconds < 300.0 { // e.g., less than 5 minutes
-            "warning"
-        } else { // Older than 5 minutes
-            "offline"
-        }
-    } else {
-        "unknown"
+fn get_topic_status_class(status: &str) -> &'static str {
+    match status {
+        "Active" => "online",
+        "Recent" => "warning",
+        "Stale" => "offline", 
+        "Inactive" => "offline",
+        _ => "unknown",
     }
 }
 

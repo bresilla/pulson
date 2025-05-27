@@ -215,7 +215,7 @@ pub fn store_device_data(db: &Database, device_id: &str, name: Option<&str>, dat
     Ok(())
 }
 
-pub fn get_device_data(db: &Database, device_id: &str) -> Result<Option<String>, StatusCode> {
+pub fn get_device_data(db: &Database, device_id: &str, status_config: &crate::logic::config::StatusConfig) -> Result<Option<String>, StatusCode> {
     let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
     // Check if device exists
@@ -236,9 +236,19 @@ pub fn get_device_data(db: &Database, device_id: &str) -> Result<Option<String>,
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
     let topic_iter = topics_stmt.query_map([device_id], |row| {
+        let last_seen_str = row.get::<_, String>(1)?;
+        let last_seen = chrono::DateTime::parse_from_rfc3339(&last_seen_str)
+            .map_err(|_| rusqlite::Error::FromSqlConversionFailure(
+                1, rusqlite::types::Type::Text, Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid timestamp format"))
+            ))?
+            .with_timezone(&chrono::Utc);
+        
+        let status = status_config.calculate_topic_status(&last_seen);
+        
         Ok(json!({
             "topic": row.get::<_, String>(0)?,
-            "last_seen": row.get::<_, String>(1)?
+            "last_seen": last_seen_str,
+            "status": status
         }))
     }).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
@@ -276,7 +286,7 @@ pub fn list_all_devices(db: &Database) -> Result<Value, StatusCode> {
     Ok(json!(devices))
 }
 
-pub fn list_user_devices(db: &Database, username: &str) -> Result<Value, StatusCode> {
+pub fn list_user_devices(db: &Database, username: &str, status_config: &crate::logic::config::StatusConfig) -> Result<Value, StatusCode> {
     let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
     let user_prefix = format!("{}:", username);
@@ -292,14 +302,25 @@ pub fn list_user_devices(db: &Database, username: &str) -> Result<Value, StatusC
     
     let device_iter = stmt.query_map([format!("{}%", user_prefix)], |row| {
         let full_device_id = row.get::<_, String>(0)?;
-        let last_seen = row.get::<_, String>(2)?;
+        let last_seen_str = row.get::<_, String>(2)?;
         
         // Strip username prefix from device_id for display
         let display_device_id = &full_device_id[user_prefix.len()..];
         
+        // Parse timestamp and calculate status
+        let last_seen = match chrono::DateTime::parse_from_rfc3339(&last_seen_str) {
+            Ok(dt) => dt.with_timezone(&chrono::Utc),
+            Err(_) => return Err(rusqlite::Error::FromSqlConversionFailure(
+                2, rusqlite::types::Type::Text, Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid timestamp format"))
+            )),
+        };
+        
+        let status = status_config.calculate_device_status(&last_seen);
+        
         Ok(json!({
             "device_id": display_device_id,
-            "last_seen": last_seen
+            "last_seen": last_seen_str,
+            "status": status
         }))
     }).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     

@@ -7,12 +7,14 @@ pub mod token_service; // Add this line
 use crate::logic::serve::api::account_routes::{delete_user, list_users, login, register, user_info}; // Added user_info
 // use crate::logic::serve::api::device_routes::{list_all, list_one, ping, delete_device};
 use crate::logic::serve::database::Database;
+use crate::logic::config::StatusConfig;
 use warp::Filter;
 
 /// Compose all account- and device-related routes into one API filter.
 pub fn api_routes(
     db: Database,
     root_pass: Option<String>,
+    status_config: StatusConfig,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     let reg = register(db.clone(), root_pass.clone());
     let log = login(db.clone());
@@ -22,8 +24,8 @@ pub fn api_routes(
     let userinfo_route = user_info(db.clone()); // Add userinfo route
 
     let p = device_routes::ping(db.clone());
-    let la = device_routes::list_all(db.clone());
-    let lo = device_routes::list_one(db.clone());
+    let la = device_routes::list_all(db.clone(), status_config.clone());
+    let lo = device_routes::list_one(db.clone(), status_config.clone());
     let dd = device_routes::delete_device(db.clone()); // Add delete_device route
 
     // Routes already include /api prefix in their individual definitions

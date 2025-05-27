@@ -7,6 +7,7 @@ use crate::logic::serve::api::api_routes;
 use crate::logic::serve::auth::Unauthorized;
 use crate::logic::serve::database::init_database;
 use crate::logic::serve::ui::ui_routes;
+use crate::logic::config::StatusConfig;
 use daemonize::Daemonize;
 use shellexpand;
 use std::net::IpAddr;
@@ -19,6 +20,7 @@ pub async fn run(
     daemon: bool,
     root_pass: Option<String>,
     _webui: bool,
+    status_config: StatusConfig,
 ) -> anyhow::Result<()> {
     // 1) Daemonize if requested
     if daemon {
@@ -38,8 +40,8 @@ pub async fn run(
     };
     let db = init_database(&db_file)?;
 
-    // 3) Build API routes
-    let api = api_routes(db.clone(), root_pass.clone())
+    // 3) Build API routes with status configuration
+    let api = api_routes(db.clone(), root_pass.clone(), status_config.clone())
         .recover(|err: Rejection| async move {
             if err.find::<Unauthorized>().is_some() {
                 Ok(warp::reply::with_status(

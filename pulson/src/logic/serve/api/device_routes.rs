@@ -1,5 +1,6 @@
 use crate::logic::serve::auth::authenticated_user;
 use crate::logic::serve::database::{Database, store_device_data, get_device_data, list_user_devices, delete_device as db_delete_device};
+use crate::logic::config::StatusConfig;
 use chrono::Utc;
 use serde_json;
 use warp::{
@@ -55,6 +56,7 @@ pub fn ping(
 
 pub fn list_all(
     db: Database,
+    status_config: StatusConfig,
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone());
     warp::get()
@@ -63,7 +65,7 @@ pub fn list_all(
         .and(auth)
         .map(move |username: String| {
             // Get devices for the authenticated user
-            match list_user_devices(&db, &username) {
+            match list_user_devices(&db, &username, &status_config) {
                 Ok(devices_json) => warp_json(&devices_json),
                 Err(_) => {
                     eprintln!("Failed to list devices for user: {}", username);
@@ -75,6 +77,7 @@ pub fn list_all(
 
 pub fn list_one(
     db: Database,
+    status_config: StatusConfig,
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone());
     warp::get()
@@ -84,7 +87,7 @@ pub fn list_one(
             // Include username in device_id to get user-specific device
             let full_device_id = format!("{}:{}", username, device_id);
             
-            match get_device_data(&db, &full_device_id) {
+            match get_device_data(&db, &full_device_id, &status_config) {
                 Ok(Some(topics_json)) => {
                     // Parse the topics JSON and return it directly
                     if let Ok(topics) = serde_json::from_str::<serde_json::Value>(&topics_json) {
