@@ -1,9 +1,21 @@
 # Changelog
 
-## [1.0.0] - 2025-05-26
+## [1.1.0] - 2025-05-27
 
 ### <!-- 0 -->⛰️  Features
 
+- Feat: Add structured data pulse protocol
+- Merge pulse and ping commands under a unified API
+- Feat: Implement support for structured device data
+- Refactor pulse visualization accent colors
+- Introduce pulse analysis and visualization
+- Migrate to API-based user configuration management
+- Implement API and UI for configuration settings
+- Fetch and display configuration data on dashboard
+- Add command and API for status configuration
+- Centralize status logic on the server
+- Add and prefix device management API routes
+- Implement device deletion subcommand
 - Refactor refresh and update UI elements
 - Start Pulson server and show topic details
 - Isolate data by username
@@ -33,6 +45,9 @@
 
 ### <!-- 2 -->🚜 Refactor
 
+- Remove unused device routes
+- Refactor and clean up API and utility files
+- Migrate API and database to use SQLite
 - Refactor status indicators to use pulse animations
 - Remove deprecated authentication modules
 - Refactor API client into dedicated submodule
@@ -49,6 +64,7 @@
 
 ### <!-- 5 -->🎨 Styling
 
+- Refactor user settings UI and styling
 - Style user menu and playlist icons
 - Refactor and adjust status display styling
 - Classify topic status based on last seen timestamp

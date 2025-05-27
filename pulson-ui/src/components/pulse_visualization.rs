@@ -1,9 +1,11 @@
 use gloo_net::http::Request;
 use gloo_storage::{LocalStorage, Storage};
+use gloo_timers::callback::Interval;
 use serde::{Deserialize};
 use serde_json::Value;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+use chrono::{DateTime, Utc, Duration, Timelike};
 
 #[derive(Clone, PartialEq, Deserialize)]
 pub struct PulseHistoryData {
@@ -13,84 +15,112 @@ pub struct PulseHistoryData {
     pub data: Vec<Value>,
 }
 
-#[derive(Clone, PartialEq, Deserialize)]
-pub struct PulseStats {
-    pub time_range: String,
-    pub start_time: String,
-    pub end_time: String,
-    pub stats: Vec<Value>,
+#[derive(Clone, PartialEq)]
+pub enum DominoStatus {
+    Green,   // Recent pulse
+    Orange,  // Some activity but not recent
+    Red,     // No activity
+    Gray,    // No data available
+}
+
+#[derive(Clone, PartialEq)]
+pub struct DominoBox {
+    pub status: DominoStatus,
+    pub tooltip: String,
+    pub label: String,
+}
+
+#[derive(Clone, PartialEq)]
+pub struct PulseStatistics {
+    pub total_pulses: i64,
+    pub active_intervals: usize,
+    pub avg_time_between_pulses: Option<f64>, // in minutes
+    pub most_recent_pulse: Option<String>,
+    pub peak_activity_interval: Option<String>,
 }
 
 #[derive(Properties, Clone, PartialEq)]
 pub struct PulseVisualizationProps {
     pub device_id: String,
     pub topic: Option<String>,
-    pub topic_status: String, // Add topic_status prop
 }
 
 #[function_component(PulseVisualization)]
 pub fn pulse_visualization(props: &PulseVisualizationProps) -> Html {
     let pulse_history = use_state(|| None::<PulseHistoryData>);
-    let pulse_stats = use_state(|| None::<PulseStats>);
     let selected_time_range = use_state(|| "1h".to_string());
     let loading = use_state(|| false);
     let error = use_state(|| None::<String>);
+    let refresh_interval = use_state(|| None::<Interval>);
 
-    let topic_status_color = match props.topic_status.as_str() {
-        "Active" => "var(--status-color-active)",
-        "Recent" => "var(--status-color-recent)",
-        "Stale" => "var(--status-color-stale)",
-        "Inactive" => "var(--status-color-inactive)",
-        _ => "var(--accent-color)", // Default or fallback
-    };
-
-    // Fetch pulse history when device, topic, or time range changes
-    {
+    // Auto-refresh function
+    let refresh_data = {
         let device_id = props.device_id.clone();
         let topic = props.topic.clone();
-        let time_range = (*selected_time_range).clone();
         let pulse_history = pulse_history.clone();
-        let pulse_stats = pulse_stats.clone();
         let loading = loading.clone();
         let error = error.clone();
+        let selected_time_range = selected_time_range.clone();
+        
+        Callback::from(move |_| {
+            let device_id = device_id.clone();
+            let topic = topic.clone();
+            let time_range = (*selected_time_range).clone();
+            let pulse_history = pulse_history.clone();
+            let loading = loading.clone();
+            let error = error.clone();
+
+            spawn_local(async move {
+                // Don't show loading for auto-refresh
+                error.set(None);
+
+                match fetch_pulse_history(&device_id, &time_range, topic.as_deref()).await {
+                    Ok(history) => {
+                        pulse_history.set(Some(history));
+                    }
+                    Err(e) => {
+                        error.set(Some(format!("Failed to fetch pulse history: {}", e)));
+                    }
+                }
+            });
+        })
+    };
+
+    // Set up auto-refresh interval
+    {
+        let refresh_data = refresh_data.clone();
+        let refresh_interval = refresh_interval.clone();
+        
+        use_effect_with_deps(
+            move |_| {
+                // Clear existing interval
+                refresh_interval.set(None);
+                
+                // Set up new interval (refresh every 5 seconds)
+                let interval = Interval::new(5000, move || {
+                    refresh_data.emit(());
+                });
+                
+                refresh_interval.set(Some(interval));
+                
+                || {
+                    // Cleanup on unmount
+                }
+            },
+            (),
+        );
+    }
+
+    // Initial fetch when device, topic, or time range changes
+    {
+        let refresh_data = refresh_data.clone();
+        let loading = loading.clone();
 
         use_effect_with_deps(
             move |_| {
-                let device_id = device_id.clone();
-                let topic = topic.clone();
-                let time_range = time_range.clone();
-                let pulse_history = pulse_history.clone();
-                let pulse_stats = pulse_stats.clone();
-                let loading = loading.clone();
-                let error = error.clone();
-
-                spawn_local(async move {
-                    loading.set(true);
-                    error.set(None);
-
-                    // Fetch pulse history
-                    match fetch_pulse_history(&device_id, &time_range, topic.as_deref()).await {
-                        Ok(history) => {
-                            pulse_history.set(Some(history));
-                        }
-                        Err(e) => {
-                            error.set(Some(format!("Failed to fetch pulse history: {}", e)));
-                        }
-                    }
-
-                    // Fetch pulse stats
-                    match fetch_pulse_stats(&device_id, &time_range).await {
-                        Ok(stats) => {
-                            pulse_stats.set(Some(stats));
-                        }
-                        Err(e) => {
-                            error.set(Some(format!("Failed to fetch pulse stats: {}", e)));
-                        }
-                    }
-
-                    loading.set(false);
-                });
-
+                loading.set(true);
+                refresh_data.emit(());
+                loading.set(false);
                 || {}
             },
             (props.device_id.clone(), props.topic.clone(), (*selected_time_range).clone()),
@@ -100,197 +130,356 @@ pub fn pulse_visualization(props: &PulseVisualizationProps) -> Html {
     // Time range selection callback
     let on_time_range_change = {
         let selected_time_range = selected_time_range.clone();
-        Callback::from(move |range: String| {
-            selected_time_range.set(range);
+        Callback::from(move |time_range: String| {
+            selected_time_range.set(time_range);
         })
     };
 
+    // Generate domino boxes based on time range and pulse data
+    let domino_boxes = generate_domino_boxes(&selected_time_range, &pulse_history);
+    
+    // Calculate pulse statistics
+    let statistics = calculate_pulse_statistics(&selected_time_range, &pulse_history);
+
     html! {
-        <div class="pulse-visualization" style={format!("--pulse-viz-accent-color: {};", topic_status_color)}>
-            <div class="pulse-viz-header">
-                <h3>{"Pulse History"}</h3>
-                <div class="time-range-selector">
-                    <button 
-                        class={classes!("time-range-btn", (*selected_time_range == "1h").then(|| "active"))}
-                        onclick={
-                            let callback = on_time_range_change.clone();
-                            Callback::from(move |_| callback.emit("1h".to_string()))
+        <div class="pulse-visualization">
+            <div class="pulse-controls">
+                <h3>{"Pulse Activity"}</h3>
+                <div class="time-range-buttons">
+                    {for ["1h", "1d", "1w", "1y"].iter().map(|&range| {
+                        let range_str = range.to_string();
+                        let is_selected = *selected_time_range == range_str;
+                        let on_click = {
+                            let range_str = range_str.clone();
+                            let on_time_range_change = on_time_range_change.clone();
+                            Callback::from(move |_| {
+                                on_time_range_change.emit(range_str.clone());
+                            })
+                        };
+                        html! {
+                            <button 
+                                class={classes!("time-range-btn", is_selected.then(|| "active"))}
+                                onclick={on_click}
+                            >
+                                {range.to_uppercase()}
+                            </button>
                         }
-                    >
-                        {"1H"}
-                    </button>
-                    <button 
-                        class={classes!("time-range-btn", (*selected_time_range == "1d").then(|| "active"))}
-                        onclick={
-                            let callback = on_time_range_change.clone();
-                            Callback::from(move |_| callback.emit("1d".to_string()))
-                        }
-                    >
-                        {"1D"}
-                    </button>
-                    <button 
-                        class={classes!("time-range-btn", (*selected_time_range == "1w").then(|| "active"))}
-                        onclick={
-                            let callback = on_time_range_change.clone();
-                            Callback::from(move |_| callback.emit("1w".to_string()))
-                        }
-                    >
-                        {"1W"}
-                    </button>
-                    <button 
-                        class={classes!("time-range-btn", (*selected_time_range == "1m").then(|| "active"))}
-                        onclick={
-                            let callback = on_time_range_change.clone();
-                            Callback::from(move |_| callback.emit("1m".to_string()))
-                        }
-                    >
-                        {"1M"}
-                    </button>
+                    })}
                 </div>
             </div>
 
             if *loading {
-                <div class="pulse-viz-loading">
-                    <p>{"Loading pulse data..."}</p>
-                </div>
-            } else if let Some(error_msg) = &*error {
-                <div class="pulse-viz-error">
-                    <p>{format!("Error: {}", error_msg)}</p>
-                </div>
+                <div class="pulse-loading">{"Loading pulse data..."}</div>
+            } else if let Some(error_msg) = (*error).as_ref() {
+                <div class="pulse-error">{error_msg}</div>
             } else {
-                <div class="pulse-viz-content">
-                    // Pulse History Chart
-                    if let Some(history) = &*pulse_history {
-                        <div class="pulse-chart-container">
-                            <h4>{"Pulse Activity Chart"}</h4>
-                            <div class="chart-info">
-                                <p>
-                                    {"Showing pulse activity from "}
-                                    <strong>{format_time_short(&history.start_time)}</strong>
-                                    {" to "}
-                                    <strong>{format_time_short(&history.end_time)}</strong>
-                                </p>
-                            </div>
-                            <div class="pulse-chart">
-                                <PulseChart data={history.data.clone()} time_range={history.time_range.clone()} />
-                            </div>
+                <div class="domino-container">
+                    <div class="domino-info">
+                        <p>{get_time_range_description(&selected_time_range)}</p>
+                    </div>
+                    <div class="pulse-statistics">
+                        <div class="stat-item">
+                            <span class="stat-label">{"Total pulses:"}</span>
+                            <span class="stat-value">{statistics.total_pulses}</span>
                         </div>
-                    }
-
-                    // Pulse Statistics
-                    if let Some(stats) = &*pulse_stats {
-                        <div class="pulse-stats-container">
-                            <h4>{"Pulse Statistics"}</h4>
-                            if stats.stats.is_empty() {
-                                <p class="no-stats">{"No pulse data available for this time period"}</p>
-                            } else {
-                                <div class="stats-grid">
-                                    {for stats.stats.iter().map(|stat| {
-                                        html! {
-                                            <div class="stat-item">
-                                                <div class="stat-topic">{stat["topic"].as_str().unwrap_or("Unknown")}</div>
-                                                <div class="stat-count">{stat["total_pulses"].as_i64().unwrap_or(0)}</div>
-                                                <div class="stat-label">{"pulses"}</div>
-                                                <div class="stat-times">
-                                                    <small>
-                                                        {"First: "}{format_time_short(stat["first_pulse"].as_str().unwrap_or(""))}
-                                                    </small>
-                                                    <small>
-                                                        {"Last: "}{format_time_short(stat["last_pulse"].as_str().unwrap_or(""))}
-                                                    </small>
-                                                </div>
-                                            </div>
-                                        }
-                                    })}
+                        <div class="stat-item">
+                            <span class="stat-label">{"Active intervals:"}</span>
+                            <span class="stat-value">{format!("{}/{}", statistics.active_intervals, domino_boxes.len())}</span>
+                        </div>
+                        if let Some(avg_time) = statistics.avg_time_between_pulses {
+                            <div class="stat-item">
+                                <span class="stat-label">{"Avg time between:"}</span>
+                                <span class="stat-value">{format!("{:.1} min", avg_time)}</span>
+                            </div>
+                        }
+                        if let Some(ref recent_pulse) = statistics.most_recent_pulse {
+                            <div class="stat-item">
+                                <span class="stat-label">{"Last pulse:"}</span>
+                                <span class="stat-value">{recent_pulse}</span>
+                            </div>
+                        }
+                    </div>
+                    <div class="domino-grid">
+                        {for domino_boxes.into_iter().enumerate().map(|(index, domino_box)| {
+                            let status_class = match domino_box.status {
+                                DominoStatus::Green => "domino-green",
+                                DominoStatus::Orange => "domino-orange", 
+                                DominoStatus::Red => "domino-red",
+                                DominoStatus::Gray => "domino-gray",
+                            };
+                            html! {
+                                <div 
+                                    class={classes!("domino-box", status_class)}
+                                    title={domino_box.tooltip.clone()}
+                                    key={index}
+                                >
+                                    <div class="domino-inner"></div>
                                 </div>
                             }
+                        })}
+                    </div>
+                    <div class="domino-legend">
+                        <div class="legend-item">
+                            <div class="legend-color domino-green"></div>
+                            <span>{"Recent activity"}</span>
                         </div>
-                    }
+                        <div class="legend-item">
+                            <div class="legend-color domino-orange"></div>
+                            <span>{"Some activity"}</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color domino-red"></div>
+                            <span>{"No activity"}</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color domino-gray"></div>
+                            <span>{"No data"}</span>
+                        </div>
+                    </div>
                 </div>
             }
         </div>
     }
 }
 
-#[derive(Properties, Clone, PartialEq)]
-pub struct PulseChartProps {
-    pub data: Vec<Value>,
-    pub time_range: String,
-}
+// Generate domino boxes based on time range and pulse data
+fn generate_domino_boxes(time_range: &str, pulse_history: &UseStateHandle<Option<PulseHistoryData>>) -> Vec<DominoBox> {
+    let box_count = match time_range {
+        "1h" => 30,
+        "1d" => 24,
+        "1w" => 14,
+        "1y" => 12,
+        _ => 30,
+    };
 
-#[function_component(PulseChart)]
-pub fn pulse_chart(props: &PulseChartProps) -> Html {
-    if props.data.is_empty() {
-        return html! {
-            <div class="pulse-chart-empty">
-                <p>{"No pulse data available"}</p>
-                <small>{"Pulses will appear here once the device starts sending pings"}</small>
-            </div>
+    // If no pulse data available, return all gray boxes
+    let pulse_data = match pulse_history.as_ref() {
+        Some(data) => &data.data,
+        None => {
+            return (0..box_count).map(|i| DominoBox {
+                status: DominoStatus::Gray,
+                tooltip: format!("Interval {}: No data available", i + 1),
+                label: String::new(), // No labels for 100 tiny boxes
+            }).collect();
+        }
+    };
+
+    // Generate boxes based on the selected time range
+    let now = Utc::now();
+    let mut boxes = Vec::with_capacity(box_count);
+
+    for i in 0..box_count {
+        let (start_time, end_time, label) = calculate_interval_times(time_range, i, box_count, &now);
+        
+        // Check if there were any pulses in this interval
+        let pulse_count = count_pulses_in_interval(pulse_data, &start_time, &end_time);
+        
+        // Determine the color based on pulse activity
+        let status = if pulse_count > 0 {
+            // Check if this is the most recent interval with activity
+            if i == box_count - 1 || is_most_recent_with_activity(pulse_data, &start_time, &end_time, time_range, i, box_count, &now) {
+                DominoStatus::Green
+            } else {
+                DominoStatus::Orange
+            }
+        } else {
+            DominoStatus::Red
         };
+
+        boxes.push(DominoBox {
+            status,
+            tooltip: format!("Interval {} ({}): {} pulse{}", i + 1, label, pulse_count, if pulse_count == 1 { "" } else { "s" }),
+            label: String::new(), // No labels for 100 tiny boxes
+        });
     }
 
-    // Create a simple visual representation of pulse data
-    let max_pulses = props.data.iter()
-        .map(|entry| entry["pulse_count"].as_i64().unwrap_or(0))
-        .max()
-        .unwrap_or(1);
+    boxes
+}
 
-    html! {
-        <div class="pulse-chart-visualization">
-            <div class="chart-legend">
-                <span class="legend-item">
-                    <span class="legend-color pulse-high"></span>
-                    {"High Activity"}
-                </span>
-                <span class="legend-item">
-                    <span class="legend-color pulse-medium"></span>
-                    {"Medium Activity"}
-                </span>
-                <span class="legend-item">
-                    <span class="legend-color pulse-low"></span>
-                    {"Low Activity"}
-                </span>
-                <span class="legend-item">
-                    <span class="legend-color pulse-none"></span>
-                    {"No Activity"}
-                </span>
-            </div>
-            <div class="chart-bars">
-                {for props.data.iter().enumerate().map(|(index, entry)| {
-                    let pulse_count = entry["pulse_count"].as_i64().unwrap_or(0);
-                    let time = entry["time"].as_str().unwrap_or("");
-                    let height_percent = if max_pulses > 0 {
-                        (pulse_count as f64 / max_pulses as f64 * 100.0).min(100.0)
-                    } else {
-                        0.0
-                    };
-                    
-                    let bar_class = if pulse_count == 0 {
-                        "pulse-none"
-                    } else if pulse_count < max_pulses / 3 {
-                        "pulse-low"
-                    } else if pulse_count < (max_pulses * 2) / 3 {
-                        "pulse-medium"
-                    } else {
-                        "pulse-high"
-                    };
+// Calculate pulse statistics based on the pulse data
+fn calculate_pulse_statistics(time_range: &str, pulse_history: &UseStateHandle<Option<PulseHistoryData>>) -> PulseStatistics {
+    let pulse_data = match pulse_history.as_ref() {
+        Some(data) => &data.data,
+        None => {
+            return PulseStatistics {
+                total_pulses: 0,
+                active_intervals: 0,
+                avg_time_between_pulses: None,
+                most_recent_pulse: None,
+                peak_activity_interval: None,
+            };
+        }
+    };
 
-                    html! {
-                        <div class="chart-bar-container" title={format!("{}: {} pulses", time, pulse_count)}>
-                            <div class={classes!("chart-bar", bar_class)} style={format!("height: {}%", height_percent)}>
-                            </div>
-                            if index % get_label_interval(&props.time_range) == 0 {
-                                <div class="chart-label">{format_chart_time(time)}</div>
-                            }
-                        </div>
-                    }
-                })}
-            </div>
-        </div>
+    // Parse all pulse timestamps and counts
+    let mut pulse_events: Vec<(DateTime<Utc>, i64)> = Vec::new();
+    let mut total_pulses = 0i64;
+    
+    for entry in pulse_data {
+        // Try both "timestamp" and "time" field names for compatibility
+        if let Some(timestamp_str) = entry["timestamp"].as_str().or_else(|| entry["time"].as_str()) {
+            if let Ok(timestamp) = DateTime::parse_from_rfc3339(timestamp_str) {
+                let timestamp = timestamp.with_timezone(&Utc);
+                let pulse_count = entry["pulse_count"].as_i64().unwrap_or(1);
+                total_pulses += pulse_count;
+                pulse_events.push((timestamp, pulse_count));
+            }
+        }
+    }
+    
+    // Sort by timestamp
+    pulse_events.sort_by_key(|(timestamp, _)| *timestamp);
+    
+    // Calculate active intervals by checking how many time intervals had activity
+    let now = Utc::now();
+    let box_count = match time_range {
+        "1h" => 30,
+        "1d" => 24,
+        "1w" => 14,
+        "1y" => 12,
+        _ => 30,
+    };
+    
+    let mut active_intervals = 0;
+    for i in 0..box_count {
+        let (start_time, end_time, _) = calculate_interval_times(time_range, i, box_count, &now);
+        let pulse_count = count_pulses_in_interval(pulse_data, &start_time, &end_time);
+        if pulse_count > 0 {
+            active_intervals += 1;
+        }
+    }
+    
+    // Calculate average time between pulses
+    let avg_time_between_pulses = if pulse_events.len() > 1 {
+        let total_duration = pulse_events.last().unwrap().0.signed_duration_since(pulse_events.first().unwrap().0);
+        Some(total_duration.num_minutes() as f64 / (pulse_events.len() - 1) as f64)
+    } else {
+        None
+    };
+    
+    // Find most recent pulse
+    let most_recent_pulse = pulse_events.last().map(|(timestamp, _)| {
+        let duration_ago = now.signed_duration_since(*timestamp);
+        if duration_ago.num_minutes() < 60 {
+            format!("{}m ago", duration_ago.num_minutes())
+        } else if duration_ago.num_hours() < 24 {
+            format!("{}h ago", duration_ago.num_hours())
+        } else {
+            format!("{}d ago", duration_ago.num_days())
+        }
+    });
+    
+    PulseStatistics {
+        total_pulses,
+        active_intervals,
+        avg_time_between_pulses,
+        most_recent_pulse,
+        peak_activity_interval: None, // We can implement this later if needed
     }
 }
 
-// Helper functions
+fn calculate_interval_times(time_range: &str, index: usize, total_boxes: usize, now: &DateTime<Utc>) -> (DateTime<Utc>, DateTime<Utc>, String) {
+    match time_range {
+        "1h" => {
+            // 30 boxes, 2-minute intervals
+            let minutes_back = (total_boxes - index) * 2;
+            let end_time = *now - Duration::minutes((minutes_back - 2) as i64);
+            let start_time = end_time - Duration::minutes(2);
+            let label = format!("{}:{:02}", start_time.hour(), start_time.minute());
+            (start_time, end_time, label)
+        },
+        "1d" => {
+            // 24 boxes, hourly intervals
+            let hours_back = total_boxes - index;
+            let end_time = *now - Duration::hours((hours_back - 1) as i64);
+            let start_time = end_time - Duration::hours(1);
+            let label = format!("{}:00", start_time.hour());
+            (start_time, end_time, label)
+        },
+        "1w" => {
+            // 14 boxes, 12-hour intervals (day/night)
+            let intervals_back = total_boxes - index;
+            let hours_back = intervals_back * 12;
+            let end_time = *now - Duration::hours((hours_back - 12) as i64);
+            let start_time = end_time - Duration::hours(12);
+            let period = if start_time.hour() < 12 { "AM" } else { "PM" };
+            let label = format!("{} {}", start_time.format("%m/%d"), period);
+            (start_time, end_time, label)
+        },
+        "1y" => {
+            // 12 boxes, monthly intervals
+            let months_back = total_boxes - index;
+            let start_time = *now - Duration::days((months_back * 30) as i64);
+            let end_time = start_time + Duration::days(30);
+            let label = start_time.format("%b").to_string();
+            (start_time, end_time, label)
+        },
+        _ => {
+            let end_time = *now;
+            let start_time = end_time - Duration::hours(1);
+            (start_time, end_time, "Unknown".to_string())
+        }
+    }
+}
+
+fn count_pulses_in_interval(pulse_data: &[Value], start_time: &DateTime<Utc>, end_time: &DateTime<Utc>) -> i64 {
+    pulse_data.iter()
+        .filter_map(|entry| {
+            let timestamp_str = entry["timestamp"].as_str()?;
+            let timestamp = DateTime::parse_from_rfc3339(timestamp_str).ok()?.with_timezone(&Utc);
+            if timestamp >= *start_time && timestamp < *end_time {
+                Some(entry["pulse_count"].as_i64().unwrap_or(1))
+            } else {
+                None
+            }
+        })
+        .sum()
+}
+
+fn is_most_recent_with_activity(
+    pulse_data: &[Value], 
+    current_start: &DateTime<Utc>, 
+    current_end: &DateTime<Utc>,
+    _time_range: &str,
+    _current_index: usize,
+    _total_boxes: usize,
+    _now: &DateTime<Utc>
+) -> bool {
+    // Check if this interval contains the most recent pulse activity
+    let mut most_recent_pulse: Option<DateTime<Utc>> = None;
+    
+    // Find the most recent pulse across all intervals
+    for entry in pulse_data {
+        // Try both "timestamp" and "time" field names for compatibility
+        if let Some(timestamp_str) = entry["timestamp"].as_str().or_else(|| entry["time"].as_str()) {
+            if let Ok(timestamp) = DateTime::parse_from_rfc3339(timestamp_str) {
+                let timestamp = timestamp.with_timezone(&Utc);
+                if entry["pulse_count"].as_i64().unwrap_or(0) > 0 {
+                    most_recent_pulse = Some(most_recent_pulse.map_or(timestamp, |prev| prev.max(timestamp)));
+                }
+            }
+        }
+    }
+    
+    // Check if the most recent pulse falls within this interval
+    if let Some(recent_pulse) = most_recent_pulse {
+        recent_pulse >= *current_start && recent_pulse < *current_end
+    } else {
+        false
+    }
+}
+
+fn get_time_range_description(time_range: &str) -> String {
+    match time_range {
+        "1h" => "30 boxes, 2-minute intervals".to_string(),
+        "1d" => "24 boxes, hourly intervals".to_string(),
+        "1w" => "14 boxes, 12-hour day/night intervals".to_string(),
+        "1y" => "12 boxes, monthly intervals".to_string(),
+        _ => "Time intervals".to_string(),
+    }
+}
+
+// Helper functions for API calls
 async fn fetch_pulse_history(device_id: &str, time_range: &str, topic: Option<&str>) -> Result<PulseHistoryData, String> {
     let token = LocalStorage::get::<String>("pulson_token")
         .map_err(|_| "No authentication token found".to_string())?;
@@ -313,56 +502,5 @@ async fn fetch_pulse_history(device_id: &str, time_range: &str, topic: Option<&s
             .map_err(|e| format!("Failed to parse response: {}", e))
     } else {
         Err(format!("Server error: {}", request.status()))
-    }
-}
-
-async fn fetch_pulse_stats(device_id: &str, time_range: &str) -> Result<PulseStats, String> {
-    let token = LocalStorage::get::<String>("pulson_token")
-        .map_err(|_| "No authentication token found".to_string())?;
-
-    let url = format!("/api/devices/{}/stats?time_range={}", device_id, time_range);
-
-    let request = Request::get(&url)
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await
-        .map_err(|e| format!("Network error: {}", e))?;
-
-    if request.status() == 200 {
-        request
-            .json::<PulseStats>()
-            .await
-            .map_err(|e| format!("Failed to parse response: {}", e))
-    } else {
-        Err(format!("Server error: {}", request.status()))
-    }
-}
-
-fn format_time_short(time_str: &str) -> String {
-    // Parse ISO 8601 timestamp and format to short format
-    if let Ok(parsed) = chrono::DateTime::parse_from_rfc3339(time_str) {
-        parsed.format("%m/%d %H:%M").to_string()
-    } else {
-        time_str.to_string()
-    }
-}
-
-fn format_chart_time(time_str: &str) -> String {
-    // Format time for chart labels
-    if let Ok(parsed) = chrono::DateTime::parse_from_rfc3339(time_str) {
-        parsed.format("%H:%M").to_string()
-    } else {
-        time_str.to_string()
-    }
-}
-
-fn get_label_interval(time_range: &str) -> usize {
-    // Determine how often to show labels based on time range
-    match time_range {
-        "1h" => 5,  // Every 5th bar for 1 hour
-        "1d" => 12, // Every 12th bar for 1 day
-        "1w" => 24, // Every 24th bar for 1 week
-        "1m" => 60, // Every 60th bar for 1 month
-        _ => 10,
     }
 }

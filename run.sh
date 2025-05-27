@@ -7,19 +7,18 @@ build() {
     cargo build --release
 }
 
-# @cmd the file
+# @cmd run cargo project
+# @alias r
 run() {
     PULSON_IP=172.30.0.175 ./target/release/pulson serve --webui --root-pass "superdupersecret"
 }
 
 # @cmd mark as releaser
-# @alias r
 # @arg type![patch|minor|major] Release type
 release() {
-    # echo "release $1"
-    CURRENT_VERSION=$(grep '^version = 'Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+    CURRENT_VERSION=$(grep '^version = ' pulson/Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+    echo "Current version: $CURRENT_VERSION"
     IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-    echo $argc_type
     case $argc_type in
         major)
             MAJOR=$((MAJOR + 1))
@@ -35,6 +34,7 @@ release() {
             ;;
     esac
     version="$MAJOR.$MINOR.$PATCH"
+    echo "New version: $version"
     sed -i "s/^version = \".*\"/version = \"$version\"/" Cargo.toml
     git cliff --tag $version > CHANGELOG.md
     changelog=$(git cliff --unreleased --strip all)

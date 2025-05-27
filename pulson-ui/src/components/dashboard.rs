@@ -387,7 +387,7 @@ pub fn dashboard() -> Html {
                                     let topic_name = topic.topic.clone();
                                     let is_topic_selected = selected_topic.as_ref() == Some(&topic_name);
                                     let device_id_for_pulse = selected_device.as_ref().unwrap().clone();
-                                    let current_topic_status = topic.status.clone(); // Get the status for the current topic
+                                    let _current_topic_status = topic.status.clone(); // Get the status for the current topic
                                     let on_click_topic = {
                                         let topic_name = topic_name.clone();
                                         let on_topic_select = on_topic_select.clone();
@@ -421,11 +421,18 @@ pub fn dashboard() -> Html {
                                             </div> // End of topic-main-row
                                             if is_topic_selected {
                                                 <div class="topic-details">
-                                                    <PulseVisualization
-                                                        device_id={device_id_for_pulse}
-                                                        topic={Some(topic_name.clone())}
-                                                        topic_status={current_topic_status} // Pass the status
-                                                    />
+                                                    if topic.data_type == "ping" {
+                                                        <PulseVisualization
+                                                            device_id={device_id_for_pulse}
+                                                            topic={Some(topic_name.clone())}
+                                                        />
+                                                    } else {
+                                                        <div class="unimplemented-message">
+                                                            <h4>{"Data Type: "}{&topic.data_type.to_uppercase()}</h4>
+                                                            <p class="unimplemented-text">{"Visualization for this data type is not yet implemented"}</p>
+                                                            <small class="unimplemented-hint">{"Currently only PING data type visualization is supported"}</small>
+                                                        </div>
+                                                    }
                                                 </div>
                                             }
                                         </div>

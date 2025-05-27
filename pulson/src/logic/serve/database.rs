@@ -494,9 +494,9 @@ pub fn get_pulse_history(db: &Database, device_id: &str, topic: Option<&str>, ti
     let (query, params): (String, Vec<String>) = if let Some(topic_name) = topic {
         (
             "SELECT 
-                datetime(timestamp) as time,
+                datetime(timestamp, 'utc')||'Z' as timestamp,
                 COUNT(*) as pulse_count
-             FROM pulse_history 
+             FROM device_data 
              WHERE device_id = ?1 AND topic = ?2 AND timestamp >= ?3
              GROUP BY strftime('%Y-%m-%d %H:%M', timestamp)
              ORDER BY timestamp".to_string(),
@@ -505,10 +505,10 @@ pub fn get_pulse_history(db: &Database, device_id: &str, topic: Option<&str>, ti
     } else {
         (
             "SELECT 
-                datetime(timestamp) as time,
+                datetime(timestamp, 'utc')||'Z' as timestamp,
                 topic,
                 COUNT(*) as pulse_count
-             FROM pulse_history 
+             FROM device_data 
              WHERE device_id = ?1 AND timestamp >= ?2
              GROUP BY strftime('%Y-%m-%d %H:%M', timestamp), topic
              ORDER BY timestamp, topic".to_string(),
@@ -523,12 +523,12 @@ pub fn get_pulse_history(db: &Database, device_id: &str, topic: Option<&str>, ti
     let pulse_iter = stmt.query_map(params_refs.as_slice(), |row| {
         if topic.is_some() {
             Ok(json!({
-                "time": row.get::<_, String>(0)?,
+                "timestamp": row.get::<_, String>(0)?,
                 "pulse_count": row.get::<_, i64>(1)?
             }))
         } else {
             Ok(json!({
-                "time": row.get::<_, String>(0)?,
+                "timestamp": row.get::<_, String>(0)?,
                 "topic": row.get::<_, String>(1)?,
                 "pulse_count": row.get::<_, i64>(2)?
             }))
