@@ -16,7 +16,7 @@ run() {
 # @cmd mark as releaser
 # @arg type![patch|minor|major] Release type
 release() {
-    CURRENT_VERSION=$(grep '^version = ' pulson/Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+    CURRENT_VERSION=$(grep '^version = ' pulson/Cargo.toml | sed -E 's/version = "(.*)"/\\1/')
     echo "Current version: $CURRENT_VERSION"
     IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
     case $argc_type in
@@ -33,17 +33,31 @@ release() {
             PATCH=$((PATCH + 1))
             ;;
     esac
-    version="$MAJOR.$MINOR.$PATCH"
-    echo "New version: $version"
-    sed -i "s/^version = \".*\"/version = \"$version\"/" pulson/Cargo.toml
-    sed -i "s/^version = \".*\"/version = \"$version\"/" pulson-ui/Cargo.toml
-    git cliff --tag $version > CHANGELOG.md
-    changelog=$(git cliff --unreleased --strip all)
-    git add -A && git commit -m "chore(release): prepare for $version"
-    echo "$changelog"
-    git tag -a $version -m "$version" -m "$changelog"
+    numeric_version="$MAJOR.$MINOR.$PATCH"
+    tag_version="v$numeric_version"
+
+    echo "New version: $numeric_version (tag: $tag_version)"
+
+    # Update Cargo.toml files with the numeric version
+    sed -i "s/^version = \".*\"/version = \"$numeric_version\"/" pulson/Cargo.toml
+    sed -i "s/^version = \".*\"/version = \"$numeric_version\"/" pulson-ui/Cargo.toml
+
+    # Generate changelog for the new v-prefixed tag
+    # This command generates/updates the entire CHANGELOG.md file
+    git cliff --tag "$tag_version" > CHANGELOG.md
+
+    # Get the changelog content for the current release (unreleased changes before tagging)
+    changelog_content=$(git cliff --unreleased --strip all)
+
+    git add -A && git commit -m "chore(release): prepare for $tag_version"
+    echo "$changelog_content"
+
+    # Create the v-prefixed git tag
+    git tag -a "$tag_version" -m "$tag_version" -m "$changelog_content"
     git push --follow-tags --force --set-upstream origin develop
-    gh release create $version --notes "$changelog"
+
+    # Create GitHub release with the v-prefixed tag
+    gh release create "$tag_version" --notes "$changelog_content"
 }
 
 

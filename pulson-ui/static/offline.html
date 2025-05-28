@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pulson - Offline</title>
+  <link rel="stylesheet" href="/static/styles/base.css" />
+  <style>
+    .offline-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+      padding: 2rem;
+    }
+    
+    .offline-icon {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 1rem;
+      opacity: 0.6;
+    }
+    
+    .offline-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary, #1a1a1a);
+    }
+    
+    .offline-message {
+      color: var(--text-secondary, #666);
+      margin-bottom: 2rem;
+      max-width: 400px;
+    }
+    
+    .retry-button {
+      background: var(--primary-color, #2563eb);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color 0.2s;
+    }
+    
+    .retry-button:hover {
+      background: var(--primary-hover, #1d4ed8);
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-container">
+    <img src="/static/logo.png" alt="Pulson Logo" class="offline-icon" />
+    <h1 class="offline-title">You're offline</h1>
+    <p class="offline-message">
+      It looks like you're not connected to the internet. 
+      Please check your connection and try again.
+    </p>
+    <button class="retry-button" onclick="window.location.reload()">
+      Try Again
+    </button>
+  </div>
+</body>
+</html>

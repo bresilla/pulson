@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PWA Test - Pulson</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+    
+    .test-section {
+      margin: 2rem 0;
+      padding: 1.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      background: #f9fafb;
+    }
+    
+    .test-section h2 {
+      margin-top: 0;
+      color: #1f2937;
+    }
+    
+    .status {
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      margin: 0.5rem 0;
+      font-weight: 500;
+    }
+    
+    .status.success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+    
+    .status.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    
+    .status.warning {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+    
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      margin: 0.5rem 0.5rem 0.5rem 0;
+    }
+    
+    button:hover {
+      background: #1d4ed8;
+    }
+    
+    .test-result {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: white;
+      border-radius: 0.25rem;
+      border: 1px solid #d1d5db;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔧 Pulson PWA Test Suite</h1>
+  <p>This page helps you test your Progressive Web App implementation.</p>
+  
+  <div class="test-section">
+    <h2>📱 Service Worker Status</h2>
+    <div id="sw-status" class="status">Checking...</div>
+    <div id="sw-details" class="test-result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>📋 Manifest Status</h2>
+    <div id="manifest-status" class="status">Checking...</div>
+    <div id="manifest-details" class="test-result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>💾 Cache Status</h2>
+    <div id="cache-status" class="status">Checking...</div>
+    <button onclick="testCache()">Test Cache</button>
+    <button onclick="clearCache()">Clear Cache</button>
+    <div id="cache-details" class="test-result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>🔔 Notifications</h2>
+    <div id="notification-status" class="status">Checking...</div>
+    <button onclick="requestNotifications()">Request Permission</button>
+    <button onclick="testNotification()">Test Notification</button>
+    <div id="notification-details" class="test-result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>📲 Install Prompt</h2>
+    <div id="install-status" class="status">Checking...</div>
+    <button onclick="triggerInstall()">Trigger Install</button>
+    <div id="install-details" class="test-result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>🌐 Network Status</h2>
+    <div id="network-status" class="status">Checking...</div>
+    <button onclick="testOffline()">Test Offline Mode</button>
+    <div id="network-details" class="test-result"></div>
+  </div>
+
+  <script>
+    let deferredPrompt;
+    
+    // Check Service Worker
+    function checkServiceWorker() {
+      const statusEl = document.getElementById('sw-status');
+      const detailsEl = document.getElementById('sw-details');
+      
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(registration => {
+          statusEl.className = 'status success';
+          statusEl.textContent = '✅ Service Worker Active';
+          detailsEl.innerHTML = `
+            <strong>Registration:</strong> ${registration.scope}<br>
+            <strong>State:</strong> ${registration.active?.state || 'unknown'}<br>
+            <strong>Script URL:</strong> ${registration.active?.scriptURL || 'unknown'}
+          `;
+        }).catch(error => {
+          statusEl.className = 'status error';
+          statusEl.textContent = '❌ Service Worker Error';
+          detailsEl.textContent = error.message;
+        });
+      } else {
+        statusEl.className = 'status error';
+        statusEl.textContent = '❌ Service Worker Not Supported';
+        detailsEl.textContent = 'This browser does not support Service Workers.';
+      }
+    }
+    
+    // Check Manifest
+    function checkManifest() {
+      const statusEl = document.getElementById('manifest-status');
+      const detailsEl = document.getElementById('manifest-details');
+      
+      fetch('/static/manifest.json')
+        .then(response => response.json())
+        .then(manifest => {
+          statusEl.className = 'status success';
+          statusEl.textContent = '✅ Manifest Found';
+          detailsEl.innerHTML = `
+            <strong>Name:</strong> ${manifest.name}<br>
+            <strong>Short Name:</strong> ${manifest.short_name}<br>
+            <strong>Display:</strong> ${manifest.display}<br>
+            <strong>Start URL:</strong> ${manifest.start_url}<br>
+            <strong>Theme Color:</strong> ${manifest.theme_color}
+          `;
+        })
+        .catch(error => {
+          statusEl.className = 'status error';
+          statusEl.textContent = '❌ Manifest Error';
+          detailsEl.textContent = error.message;
+        });
+    }
+    
+    // Test Cache
+    async function testCache() {
+      const statusEl = document.getElementById('cache-status');
+      const detailsEl = document.getElementById('cache-details');
+      
+      try {
+        const cacheNames = await caches.keys();
+        const cacheContents = {};
+        
+        for (const cacheName of cacheNames) {
+          const cache = await caches.open(cacheName);
+          const keys = await cache.keys();
+          cacheContents[cacheName] = keys.map(req => req.url);
+        }
+        
+        statusEl.className = 'status success';
+        statusEl.textContent = '✅ Cache Working';
+        detailsEl.innerHTML = `
+          <strong>Cache Names:</strong> ${cacheNames.join(', ')}<br>
+          <strong>Cached Items:</strong> ${Object.values(cacheContents).flat().length}<br>
+          <pre>${JSON.stringify(cacheContents, null, 2)}</pre>
+        `;
+      } catch (error) {
+        statusEl.className = 'status error';
+        statusEl.textContent = '❌ Cache Error';
+        detailsEl.textContent = error.message;
+      }
+    }
+    
+    // Clear Cache
+    async function clearCache() {
+      try {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+        alert('Cache cleared successfully!');
+        testCache();
+      } catch (error) {
+        alert('Error clearing cache: ' + error.message);
+      }
+    }
+    
+    // Check Notifications
+    function checkNotifications() {
+      const statusEl = document.getElementById('notification-status');
+      const detailsEl = document.getElementById('notification-details');
+      
+      if ('Notification' in window) {
+        statusEl.className = 'status success';
+        statusEl.textContent = `✅ Notifications Supported (${Notification.permission})`;
+        detailsEl.innerHTML = `
+          <strong>Permission:</strong> ${Notification.permission}<br>
+          <strong>Max Actions:</strong> ${Notification.maxActions || 'unknown'}<br>
+          <strong>Support:</strong> Available
+        `;
+      } else {
+        statusEl.className = 'status error';
+        statusEl.textContent = '❌ Notifications Not Supported';
+        detailsEl.textContent = 'This browser does not support notifications.';
+      }
+    }
+    
+    // Request Notifications
+    async function requestNotifications() {
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        checkNotifications();
+      }
+    }
+    
+    // Test Notification
+    function testNotification() {
+      if (Notification.permission === 'granted') {
+        new Notification('Pulson Test', {
+          body: 'Your PWA notifications are working!',
+          icon: '/static/logo.png'
+        });
+      } else {
+        alert('Please enable notifications first');
+      }
+    }
+    
+    // Check Install Prompt
+    function checkInstallPrompt() {
+      const statusEl = document.getElementById('install-status');
+      const detailsEl = document.getElementById('install-details');
+      
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isInstalled = window.navigator.standalone === true;
+      
+      if (isStandalone || isInstalled) {
+        statusEl.className = 'status success';
+        statusEl.textContent = '✅ App is Installed';
+        detailsEl.textContent = 'The app is running in standalone mode.';
+      } else if (deferredPrompt) {
+        statusEl.className = 'status warning';
+        statusEl.textContent = '⏳ Install Prompt Available';
+        detailsEl.textContent = 'Click the button to trigger the install prompt.';
+      } else {
+        statusEl.className = 'status warning';
+        statusEl.textContent = '⏳ Waiting for Install Prompt';
+        detailsEl.textContent = 'The install prompt will appear when criteria are met.';
+      }
+    }
+    
+    // Trigger Install
+    async function triggerInstall() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response: ${outcome}`);
+        deferredPrompt = null;
+        checkInstallPrompt();
+      } else {
+        alert('Install prompt not available');
+      }
+    }
+    
+    // Check Network Status
+    function checkNetworkStatus() {
+      const statusEl = document.getElementById('network-status');
+      const detailsEl = document.getElementById('network-details');
+      
+      const isOnline = navigator.onLine;
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      
+      if (isOnline) {
+        statusEl.className = 'status success';
+        statusEl.textContent = '✅ Online';
+      } else {
+        statusEl.className = 'status warning';
+        statusEl.textContent = '⚠️ Offline';
+      }
+      
+      detailsEl.innerHTML = `
+        <strong>Online:</strong> ${isOnline}<br>
+        <strong>Connection Type:</strong> ${connection?.effectiveType || 'unknown'}<br>
+        <strong>Downlink:</strong> ${connection?.downlink || 'unknown'} Mbps
+      `;
+    }
+    
+    // Test Offline Mode
+    function testOffline() {
+      // Try to fetch a non-cached resource to test offline handling
+      fetch('/test-offline-endpoint')
+        .then(response => {
+          alert('Network request succeeded (you are online)');
+        })
+        .catch(error => {
+          alert('Network request failed (you might be offline or this endpoint does not exist)');
+        });
+    }
+    
+    // Event listeners
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      checkInstallPrompt();
+    });
+    
+    window.addEventListener('online', checkNetworkStatus);
+    window.addEventListener('offline', checkNetworkStatus);
+    
+    // Initialize tests
+    document.addEventListener('DOMContentLoaded', () => {
+      checkServiceWorker();
+      checkManifest();
+      checkNotifications();
+      checkInstallPrompt();
+      checkNetworkStatus();
+      
+      // Auto-test cache after a short delay
+      setTimeout(testCache, 1000);
+    });
+  </script>
+</body>
+</html>

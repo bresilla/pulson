@@ -4,6 +4,17 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pulson Dashboard</title>
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/static/manifest.json" />
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Pulson" />
+  <link rel="apple-touch-icon" href="/static/logo.png" />
+  
   <!-- Base styles and CSS variables -->
   <link rel="stylesheet" href="/static/styles/base.css" />
   <!-- Component-specific styles -->
@@ -14,6 +25,8 @@
   <link rel="stylesheet" href="/static/styles/inline_map.css" />
   <!-- Mobile responsiveness -->
   <link rel="stylesheet" href="/static/styles/mobile.css" />
+  <!-- PWA styles -->
+  <link rel="stylesheet" href="/static/styles/pwa.css" />
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
@@ -24,14 +37,32 @@
           crossorigin=""></script>
   <script type="module">
     import init from "/static/pulson_ui.js";
+    import PWAManager from "/static/pwa-manager.js";
+    
     async function main() {
       await init();
+      // PWA manager is automatically initialized
     }
     main();
   </script>
 </head>
 <body>
   <div id="root"></div>
+  
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/sw.js')
+          .then((registration) => {
+            console.log('SW registered: ', registration);
+          })
+          .catch((registrationError) => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
+    }
+  </script>
 </body>
 </html>
 

@@ -1,14 +1,9 @@
 <img align="right" width="26%" src="./book/src/images/logo.png">
 
-# p#### Register
+# P#### Register
 
 ```bash
-# Traditional format
 pulson --host 127.0.0.1:3030 account register \
-  --username myuser --password mypassword [--root-pass ROOT_SECRET]
-
-# Modern format (Cloudflare Tunnel)
-pulson --base-url https://sub.domain.com account register \
   --username myuser --password mypassword [--root-pass ROOT_SECRET]
 ```
 
@@ -32,48 +27,48 @@ Commands:
   help          Print this message or the help of the given subcommand(s)
 
 Options:
-  -H, --host <HOST>        Address to bind (serve) or connect to (client). Can include port (e.g., 127.0.0.1:3030) [default: 127.0.0.1:3030]
-  -U, --base-url <BASE_URL> Base URL for client connections (overrides host, includes protocol, e.g., https://sub.domain.com)
-  -h, --help               Print help
+  -H, --host <HOST>   Bind address: e.g., 127.0.0.1:3030, 0.0.0.0:8080, https://sub.domain.com, http://localhost:3030
+                      Can also be set via PULSON_HOST environment variable [default: 127.0.0.1:3030]
+  -h, --help          Print help
 ```
 
 ### Server
 
 ```bash
-# Traditional host:port format
+# Host:port format (traditional local deployment)
 pulson --host 127.0.0.1:3030 serve \
   --db-path ~/.local/share/pulson [--root-pass <ROOT_SECRET>]
 
 # Using environment variable
-PULSON_HOST_IP=127.0.0.1:3030 pulson serve \
+PULSON_HOST=127.0.0.1:3030 pulson serve \
+  --db-path ~/.local/share/pulson [--root-pass <ROOT_SECRET>]
+
+# Full URL format (for tunnels/reverse proxies)
+pulson --host https://sub.domain.com serve \
   --db-path ~/.local/share/pulson [--root-pass <ROOT_SECRET>]
 ```
 
 If you supply the correct `--root-pass` when starting the server, the first user who registers with that secret becomes a **root** user.
 
-The server provides a web dashboard at `http://127.0.0.1:3030` that displays real-time device status using the configured thresholds.
+The server provides a web dashboard at the configured host address that displays real-time device status using the configured thresholds.
 
 ### Client
 
-For client connections, you can use either traditional host:port format or modern base URL format:
+The unified `--host` parameter accepts both traditional host:port format and full URLs, making it flexible for different deployment scenarios:
 
-#### Traditional Configuration (Local/LAN)
 ```bash
-# Command line
+# Host:port format (local/LAN deployment)
 pulson --host 127.0.0.1:3030 device list
 
-# Environment variable
-export PULSON_HOST_IP=127.0.0.1:3030
+# Full URL format (Cloudflare Tunnel/HTTPS)
+pulson --host https://sub.domain.com device list
+
+# Using environment variable
+export PULSON_HOST=127.0.0.1:3030
 pulson device list
-```
 
-#### Modern Configuration (Cloudflare Tunnel/HTTPS)
-```bash
-# Command line
-pulson --base-url https://sub.domain.com device list
-
-# Environment variable
-export PULSON_BASE_URL=https://sub.domain.com
+# Or with full URL
+export PULSON_HOST=https://sub.domain.com
 pulson device list
 ```
 
@@ -166,17 +161,17 @@ pulson pulse -d mydevice -t /just/heartbeat '{"ping":null}'
 - **Objects with null values**: Categorized as `ping` type
 - **No data provided**: Automatically sends `{"ping":null}` as `ping` type
 
-You can set environment variables PULSON_HOST_IP and PULSON_BASE_URL to avoid typing connection parameters every time:
+You can set the PULSON_HOST environment variable to avoid typing connection parameters every time:
 
 ```bash
-# Traditional format (local/LAN)
-export PULSON_HOST_IP=127.0.0.1:3030
+# Host:port format (local/LAN)
+export PULSON_HOST=127.0.0.1:3030
 pulson device list
 pulson pulse -d foo -t bar                    # Simple ping
 pulson pulse -d robot1 -t /top/location '{"coordinates":[lat, lon, alt]}'  # Structured data
 
-# Modern format (Cloudflare Tunnel/HTTPS)
-export PULSON_BASE_URL=https://sub.domain.com
+# Full URL format (Cloudflare Tunnel/HTTPS)
+export PULSON_HOST=https://sub.domain.com
 pulson device list
 pulson pulse -d foo -t bar                    # Simple ping
 pulson pulse -d robot1 -t /top/location '{"coordinates":[lat, lon, alt]}'  # Structured data
@@ -184,22 +179,22 @@ pulson pulse -d robot1 -t /top/location '{"coordinates":[lat, lon, alt]}'  # Str
 
 ## Deployment Options
 
-### Local/LAN Deployment (Traditional)
+### Local/LAN Deployment
 
-For local development or LAN deployment, use the traditional host:port format:
+For local development or LAN deployment, use the host:port format:
 
 ```bash
 # Server
 pulson --host 127.0.0.1:3030 serve --db-path ~/.local/share/pulson
 
 # Clients
-export PULSON_HOST_IP=127.0.0.1:3030
+export PULSON_HOST=127.0.0.1:3030
 pulson device list
 ```
 
-### Cloudflare Tunnel Deployment (Modern)
+### Internet Deployment (Cloudflare Tunnel)
 
-For secure internet deployment using Cloudflare Tunnel, use the base URL format:
+For secure internet deployment using Cloudflare Tunnel, use the full URL format:
 
 1. **Set up Cloudflare Tunnel** pointing to your local server (127.0.0.1:3030)
 2. **Start the server locally**:
@@ -209,12 +204,12 @@ For secure internet deployment using Cloudflare Tunnel, use the base URL format:
 
 3. **Configure clients to use the tunnel URL**:
    ```bash
-   export PULSON_BASE_URL=https://sub.domain.com
+   export PULSON_HOST=https://sub.domain.com
    pulson device list
    pulson pulse -d mydevice -t sensors '{"temperature": 23.5}'
    ```
 
-The `--base-url` parameter (or `PULSON_BASE_URL` environment variable) takes precedence over `--host`, allowing seamless switching between local and tunnel-based deployments.
+The unified `--host` parameter automatically handles both local and remote deployments seamlessly.
 
 ## Configuration & Device Status Thresholds
 
@@ -286,8 +281,8 @@ pulson serve --config /path/to/config.toml
 
 **Connection Configuration:**
 ```bash
-export PULSON_HOST_IP=127.0.0.1:3030              # Traditional host:port format
-export PULSON_BASE_URL=https://sub.domain.com  # Modern base URL format (overrides PULSON_HOST_IP)
+export PULSON_HOST=127.0.0.1:3030         # Host:port format
+export PULSON_HOST=https://sub.domain.com  # Full URL format
 ```
 
 **Threshold Configuration:**
@@ -298,6 +293,29 @@ export PULSON_STALE_THRESHOLD=7200
 ```
 
 **Priority order**: CLI arguments > Environment variables > Configuration file > Defaults
+
+## Progressive Web App (PWA) Features
+
+Pulson includes Progressive Web App capabilities, allowing the web dashboard to be installed and used like a native mobile app:
+
+### PWA Features
+- **📱 Install as Mobile App**: Install the dashboard directly to your phone's home screen
+- **🔄 Offline Support**: Basic offline functionality with cached resources
+- **🔔 Push Notifications**: Receive device status alerts (when configured)
+- **⚡ Fast Loading**: Service worker caching for improved performance
+- **🎨 Native Feel**: App-like experience with proper theming and icons
+
+### Installation
+1. **Open the dashboard** in your mobile browser (Chrome/Safari)
+2. **Look for the install prompt** or use browser's "Add to Home Screen" option
+3. **Install the app** - it will appear on your home screen like a native app
+
+### Testing PWA Features
+Access `/pwa-test.html` on your Pulson server to test PWA installation and features:
+```bash
+# Example: http://127.0.0.1:3030/pwa-test.html
+# Or: https://your-tunnel-domain.com/pwa-test.html
+```
 
 ---
 

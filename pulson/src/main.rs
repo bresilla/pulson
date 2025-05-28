@@ -10,35 +10,13 @@ use crate::logic::client::config::{show, set}; // Import show and set directly u
 use logic::config::StatusConfig;
 use std::sync::{Arc, Mutex};
 
-/// Parse host:port combination and return (host, port)
-/// If no port is specified, returns the default port 3030
-fn parse_host_port(host_input: &str) -> (String, u16) {
-    if let Some(colon_pos) = host_input.rfind(':') {
-        let host_part = &host_input[..colon_pos];
-        let port_part = &host_input[colon_pos + 1..];
-        
-        if let Ok(port) = port_part.parse::<u16>() {
-            (host_part.to_string(), port)
-        } else {
-            // Colon found but port is not a valid number, treat as host only
-            (host_input.to_string(), 3030)
-        }
-    } else {
-        (host_input.to_string(), 3030)
-    }
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Parse command‐line arguments
     let args = Cli::parse();
 
-    // Allow environment variables to override flags
-    let host_input = std::env::var("PULSON_HOST_IP").unwrap_or_else(|_| args.host.clone());
-    let base_url = std::env::var("PULSON_BASE_URL").ok().or(args.base_url.clone());
-    
-    // Parse host:port combination
-    let (host, port) = parse_host_port(&host_input);
+    // Parse the host configuration
+    let host_config = args.parse_host();
 
     // Pre‐load token for client commands (List & Ping)
     let token = match &args.command {
@@ -72,8 +50,8 @@ async fn main() -> anyhow::Result<()> {
             // Wrap configuration in Arc<Mutex<>> for thread-safe sharing
             let status_config = Arc::new(Mutex::new(status_config));
 
-            // Run the HTTP server
-            logic::serve::run(host, port, db_path, daemon, root_pass, webui, status_config).await?
+            // Run the HTTP server - use host_config for server
+            logic::serve::run(host_config, db_path, daemon, root_pass, webui, status_config).await?
         }
 
         Commands::Device { action } => match action {
@@ -95,9 +73,9 @@ async fn main() -> anyhow::Result<()> {
 
                 // Client: list devices or topics
                 list::run(
-                    base_url,
-                    host,
-                    port,
+                    host_config.base_url(),
+                    host_config.host.clone(),
+                    host_config.port,
                     device_id,
                     token.unwrap(),
                     format,
@@ -114,7 +92,7 @@ async fn main() -> anyhow::Result<()> {
                 // Placeholder for delete device logic
                 // println!("Deleting device: {}", device_id);
                 // TODO: Implement actual device deletion logic e.g.:
-                device::delete(base_url, host, port, device_id, token.unwrap()).await?
+                device::delete(host_config.base_url(), host_config.host, host_config.port, device_id, token.unwrap()).await?
             }
         },
 
@@ -134,9 +112,9 @@ async fn main() -> anyhow::Result<()> {
         } => {
             // Client: send a unified pulse (ping or data)
             pulse::run(
-                base_url,
-                host, 
-                port, 
+                host_config.base_url(),
+                host_config.host, 
+                host_config.port, 
                 device_id, 
                 topic, 
                 data_type,
@@ -160,13 +138,13 @@ async fn main() -> anyhow::Result<()> {
                     username,
                     password,
                     rootpass,
-                } => account::register(base_url, host, port, username, password, rootpass).await?,
+                } => account::register(host_config.base_url(), host_config.host, host_config.port, username, password, rootpass).await?,
                 AccountAction::Login { username, password } => {
-                    account::login(base_url, host, port, username, password).await?
+                    account::login(host_config.base_url(), host_config.host, host_config.port, username, password).await?
                 }
-                AccountAction::Logout => account::logout(base_url, host, port).await?, // Modified this line
-                AccountAction::Delete { username } => account::delete(base_url, host, port, username).await?,
-                AccountAction::List => account::list_users(base_url, host, port).await?,
+                AccountAction::Logout => account::logout(host_config.base_url(), host_config.host, host_config.port).await?,
+                AccountAction::Delete { username } => account::delete(host_config.base_url(), host_config.host, host_config.port, username).await?,
+                AccountAction::List => account::list_users(host_config.base_url(), host_config.host, host_config.port).await?,
             }
         }
 

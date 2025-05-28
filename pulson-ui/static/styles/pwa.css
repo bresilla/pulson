@@ -1,0 +1,188 @@
+/* PWA-specific styles */
+
+/* Hide certain UI elements when running as PWA */
+.pwa-mode .browser-only {
+  display: none !important;
+}
+
+/* Adjust layout for standalone mode */
+.pwa-mode {
+  /* Add padding for status bar on mobile */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Install prompt styles */
+.pwa-install-prompt {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+  padding: 1rem;
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+
+.pwa-install-prompt.show {
+  transform: translateY(0);
+}
+
+.pwa-install-prompt-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.pwa-install-prompt-text {
+  flex: 1;
+  margin-right: 1rem;
+}
+
+.pwa-install-prompt-title {
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.25rem;
+}
+
+.pwa-install-prompt-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.pwa-install-prompt-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pwa-install-prompt-button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pwa-install-prompt-button-primary {
+  background: #2563eb;
+  color: white;
+  border: none;
+}
+
+.pwa-install-prompt-button-primary:hover {
+  background: #1d4ed8;
+}
+
+.pwa-install-prompt-button-secondary {
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.pwa-install-prompt-button-secondary:hover {
+  background: #f9fafb;
+}
+
+/* Update notification styles */
+.pwa-update-notification {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: #059669;
+  color: white;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  max-width: 300px;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+}
+
+.pwa-update-notification.show {
+  transform: translateX(0);
+}
+
+.pwa-update-notification-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.pwa-update-notification-text {
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  opacity: 0.9;
+}
+
+.pwa-update-notification-button {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  width: 100%;
+  transition: background-color 0.2s;
+}
+
+.pwa-update-notification-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .pwa-install-prompt-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .pwa-install-prompt-text {
+    margin-right: 0;
+    text-align: center;
+  }
+  
+  .pwa-install-prompt-buttons {
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .pwa-install-prompt-button {
+    flex: 1;
+  }
+  
+  .pwa-update-notification {
+    right: 0.5rem;
+    left: 0.5rem;
+    max-width: none;
+  }
+}
+
+/* Loading states for offline content */
+.offline-indicator {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #f59e0b;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.offline-indicator.hidden {
+  transform: translateX(-50%) translateY(-100%);
+  opacity: 0;
+}

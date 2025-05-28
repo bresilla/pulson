@@ -1,23 +1,19 @@
 use crate::logic::config::StatusConfig;
 use crate::logic::client::account::read_token;
 use crate::logic::client::url_utils::build_api_url;
+use crate::cli::HostConfig;
 use colored::*;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
-fn parse_host_port(host_input: &str, default_port: u16) -> (String, u16) {
-    if let Some(colon_pos) = host_input.rfind(':') {
-        let host_part = &host_input[..colon_pos];
-        let port_part = &host_input[colon_pos + 1..];
-        
-        if let Ok(port) = port_part.parse::<u16>() {
-            (host_part.to_string(), port)
-        } else {
-            (host_input.to_string(), default_port)
-        }
-    } else {
-        (host_input.to_string(), default_port)
-    }
+/// Get host configuration from environment variable or default
+fn get_host_config() -> HostConfig {
+    let host_input = std::env::var("PULSON_HOST").unwrap_or_else(|_| "127.0.0.1:3030".to_string());
+    HostConfig::from_str(&host_input).unwrap_or_else(|e| {
+        eprintln!("Error parsing PULSON_HOST '{}': {}", host_input, e);
+        std::process::exit(1);
+    })
 }
 
 #[derive(Deserialize)]
@@ -142,11 +138,8 @@ async fn fetch_user_config() -> anyhow::Result<StatusConfig> {
     let token = read_token()
         .map_err(|_| anyhow::anyhow!("Not logged in. Please run 'pulson account login' first."))?;
 
-    let host_input = std::env::var("PULSON_HOST_IP").unwrap_or_else(|_| "127.0.0.1:3030".to_string());
-    let (host, port) = parse_host_port(&host_input, 3030);
-    let base_url = std::env::var("PULSON_BASE_URL").ok();
-    
-    let url = build_api_url(base_url.as_deref(), &host, port, "/api/user/config");
+    let host_config = get_host_config();
+    let url = build_api_url(host_config.base_url().as_deref(), &host_config.host, host_config.port, "/api/user/config");
     
     let client = Client::new();
     let response = client
@@ -173,11 +166,8 @@ async fn update_user_config(config: &StatusConfig) -> anyhow::Result<()> {
     let token = read_token()
         .map_err(|_| anyhow::anyhow!("Not logged in. Please run 'pulson account login' first."))?;
 
-    let host_input = std::env::var("PULSON_HOST_IP").unwrap_or_else(|_| "127.0.0.1:3030".to_string());
-    let (host, port) = parse_host_port(&host_input, 3030);
-    let base_url = std::env::var("PULSON_BASE_URL").ok();
-    
-    let url = build_api_url(base_url.as_deref(), &host, port, "/api/user/config");
+    let host_config = get_host_config();
+    let url = build_api_url(host_config.base_url().as_deref(), &host_config.host, host_config.port, "/api/user/config");
     
     let request = ConfigUpdateRequest {
         online_threshold_seconds: config.online_threshold_seconds,

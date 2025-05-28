@@ -16,8 +16,7 @@ use std::sync::{Arc, Mutex};
 use warp::{Filter, Rejection};
 
 pub async fn run(
-    host: String,
-    port: u16,
+    host_config: crate::cli::HostConfig,
     db_path: String,
     daemon: bool,
     root_pass: Option<String>,
@@ -61,8 +60,19 @@ pub async fn run(
 
     // 5) Combine and serve
     let routes = api.or(ui);
-    println!("pulson server running on http://{}:{}", host, port);
+    println!("pulson server running on {}", host_config.server_url());
+    
+    // Parse bind address into host and port
+    let bind_address = host_config.server_bind_address();
+    let parts: Vec<&str> = bind_address.split(':').collect();
+    if parts.len() != 2 {
+        return Err(anyhow::anyhow!("Invalid bind address format: {}", bind_address));
+    }
+    
+    let host = parts[0];
+    let port: u16 = parts[1].parse()?;
     let ip: IpAddr = host.parse()?;
+    
     warp::serve(routes).run((ip, port)).await;
     Ok(())
 }

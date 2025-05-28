@@ -1,4 +1,5 @@
 use clap::{Parser, ValueEnum, Subcommand};
+use std::str::FromStr;
 
 #[derive(Clone, ValueEnum)]
 pub enum StatusFilter {
@@ -41,13 +42,9 @@ pub enum DataType {
 #[derive(Parser)]
 #[command(name = "pulson")]
 pub struct Cli {
-    /// Address to bind (serve) or connect to (client). Can include port (e.g., 127.0.0.1:3030)
-    #[arg(short = 'H', long, default_value = "127.0.0.1:3030")]
+    /// Bind address: e.g., 127.0.0.1:3030, 0.0.0.0:8080, https://sub.domain.com, http://localhost:3030 
+    #[arg(short = 'H', long, default_value = "127.0.0.1:3030", env = "PULSON_HOST")]
     pub host: String,
-
-    /// Base URL for client connections (overrides host, includes protocol, e.g., https://sub.domain.com)
-    #[arg(short = 'U', long)]
-    pub base_url: Option<String>,
 
     #[command(subcommand)]
     pub command: Commands,
@@ -227,4 +224,116 @@ pub enum ConfigAction {
         #[arg(long)]
         stale_threshold: Option<u64>,
     },
+}
+
+impl Cli {
+    /// Parse the host parameter and return connection details
+    pub fn parse_host(&self) -> HostConfig {
+        HostConfig::from_str(&self.host).unwrap_or_else(|e| {
+            eprintln!("Error parsing host '{}': {}", self.host, e);
+            std::process::exit(1);
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct HostConfig {
+    pub scheme: String,
+    pub host: String,
+    pub port: u16,
+    pub full_url: String,
+    pub bind_address: String,
+}
+
+impl FromStr for HostConfig {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Check if it's a full URL
+        if s.starts_with("http://") || s.starts_with("https://") {
+            let url = url::Url::parse(s).map_err(|e| format!("Invalid URL: {}", e))?;
+            
+            let scheme = url.scheme().to_string();
+            let host = url.host_str().ok_or("Missing host in URL")?.to_string();
+            let port = url.port().unwrap_or(match scheme.as_str() {
+                "https" => 443,
+                "http" => 80,
+                _ => return Err("Unsupported scheme".to_string()),
+            });
+            
+            let full_url = s.to_string();
+            let bind_address = format!("{}:{}", 
+                if host == "localhost" { "127.0.0.1" } else { &host }, 
+                port
+            );
+
+            Ok(HostConfig {
+                scheme,
+                host,
+                port,
+                full_url,
+                bind_address,
+            })
+        } else {
+            // Assume it's host:port format
+            let parts: Vec<&str> = s.split(':').collect();
+            if parts.len() != 2 {
+                return Err("Host must be in format 'host:port' or a full URL".to_string());
+            }
+
+            let host = parts[0].to_string();
+            let port: u16 = parts[1].parse().map_err(|_| "Invalid port number")?;
+            
+            // Default to http for local addresses
+            let scheme = "http".to_string();
+            let full_url = format!("{}://{}:{}", scheme, host, port);
+            let bind_address = s.to_string();
+
+            Ok(HostConfig {
+                scheme,
+                host,
+                port,
+                full_url,
+                bind_address,
+            })
+        }
+    }
+}
+
+impl HostConfig {
+    /// Get base_url for client connections (if using full URL) or None for host:port
+    pub fn base_url(&self) -> Option<String> {
+        if self.full_url.starts_with("https://") || 
+           (self.full_url.starts_with("http://") && self.port != 3030) {
+            Some(self.full_url.clone())
+        } else {
+            None
+        }
+    }
+
+    /// Get the bind address for server listening (IP:port format)
+    pub fn server_bind_address(&self) -> &str {
+        &self.bind_address
+    }
+
+    /// Get the full server URL for display purposes
+    pub fn server_url(&self) -> String {
+        if self.full_url.starts_with("http://") || self.full_url.starts_with("https://") {
+            self.full_url.clone()
+        } else {
+            format!("{}://{}", self.scheme, self.bind_address)
+        }
+    }
+
+    /// Get the URL scheme (http or https) - available for future use
+    #[allow(dead_code)]
+    pub fn scheme(&self) -> &str {
+        &self.scheme
+    }
+
+    /// Check if this is an HTTPS configuration - available for future use
+    #[allow(dead_code)]
+    pub fn is_https(&self) -> bool {
+        self.scheme == "https"
+    }
 }
