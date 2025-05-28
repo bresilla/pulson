@@ -2329,138 +2329,28 @@ button {
 
 /* Inline Map Styles */
 .inline-map-container {
-    background-color: #1c1c22;
+    width: 100%;
+    margin-bottom: 1rem; /* Add some space below the map */
+    border: 1px solid var(--border-color);
     border-radius: 6px;
-    border: 1px solid #3a3a40;
-    overflow: hidden;
-    margin-top: 1rem;
-}
-
-.inline-map-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    color: #a0a0a0;
-    gap: 0.75rem;
-}
-
-.inline-map-loading .loading-spinner-small {
-    width: 16px;
-    height: 16px;
-    border: 2px solid #3a3a40;
-    border-top: 2px solid #eb1c24;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-.inline-map-error {
-    padding: 1.5rem;
-    text-align: center;
-    color: #ff6b6b;
-    background-color: rgba(235, 28, 36, 0.1);
-    font-size: 0.9rem;
+    overflow: hidden; /* Ensure map corners are rounded if map itself overflows */
 }
 
 .inline-map {
     width: 100%;
-    height: 200px;
-    background-color: #25252b;
-    border-radius: 0 0 6px 6px;
-    position: relative;
-    overflow: hidden;
+    height: 400px; /* Default height */
+    min-height: 400px; /* Ensure it's at least this tall */
+    background-color: #1e1e24; /* Dark background for the map area before tiles load */
 }
 
-/* Allow all interactions for debugging */
-.leaflet-static-map .leaflet-control-container {
-    display: none;
-}
-
-/* Map popup customization */
-.leaflet-popup-content-wrapper {
-    background-color: #1c1c22 !important;
-    color: #e0e0e0 !important;
-    border-radius: 6px !important;
-    border: 1px solid #3a3a40 !important;
-}
-
-.leaflet-popup-content {
-    margin: 12px 16px !important;
-}
-
-.leaflet-popup-tip {
-    background-color: #1c1c22 !important;
-    border: 1px solid #3a3a40 !important;
-}
-
-.marker-popup h4 {
-    margin: 0 0 0.5rem 0;
-    color: #f0f0f0;
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-.marker-popup p {
-    margin: 0.25rem 0;
-    font-size: 0.85rem;
-    line-height: 1.3;
-    color: #b0b0b0;
-}
-
-.marker-popup strong {
-    color: #e0e0e0;
-}
-
-.marker-popup .status {
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-}
-
-.marker-popup .status.online {
-    background-color: #22c55e;
-    color: white;
-}
-
-.marker-popup .status.warning {
-    background-color: #f59e0b;
-    color: white;
-}
-
-.marker-popup .status.offline {
-    background-color: #ef4444;
-    color: white;
-}
-
-/* Leaflet control styling for dark theme */
-.leaflet-control-attribution {
-    background-color: rgba(28, 28, 34, 0.8) !important;
-    color: #a0a0a0 !important;
-    font-size: 0.7rem !important;
-}
-
-.leaflet-control-attribution a {
-    color: #eb1c24 !important;
-}
-
-.leaflet-control-zoom {
-    border: 1px solid #3a3a40 !important;
-    border-radius: 4px !important;
-}
-
-.leaflet-control-zoom a {
-    background-color: #1c1c22 !important;
-    color: #e0e0e0 !important;
-    border-bottom: 1px solid #3a3a40 !important;
-}
-
-.leaflet-control-zoom a:hover {
-    background-color: #25252b !important;
-    color: #eb1c24 !important;
-}
-
-.leaflet-control-zoom a:last-child {
-    border-bottom: none !important;
+.inline-map-loading,
+.inline-map-error,
+.inline-map-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    font-size: 0.9rem;
+    color: #a0a0a0;
+    height: 150px; /* Give these states a fixed height too */
 }
