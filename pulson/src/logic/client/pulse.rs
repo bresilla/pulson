@@ -1,6 +1,7 @@
 use reqwest::Client;
 use serde::Serialize;
 use crate::cli::DataType;
+use crate::logic::client::url_utils::build_api_url;
 use serde_json::json;
 
 #[derive(Serialize)]
@@ -11,6 +12,7 @@ struct PulsePayload {
 }
 
 pub async fn run(
+    base_url: Option<String>,
     host: String,
     port: u16,
     device_id: String,
@@ -28,7 +30,7 @@ pub async fn run(
     token: String,
 ) -> anyhow::Result<()> {
     let client = Client::new();
-    let url = format!("http://{}:{}/api/pulse", host, port);
+    let url = build_api_url(base_url.as_deref(), &host, port, "/api/pulse");
 
     // Generate appropriate JSON data based on data type and parameters
     let json_data = if let Some(ref custom_data) = data {

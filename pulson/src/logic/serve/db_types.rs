@@ -232,10 +232,6 @@ impl DataType {
         serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
     }
 
-    /// Parse from JSON string (from database)
-    pub fn from_json_string(json_str: &str) -> Option<Self> {
-        serde_json::from_str(json_str).ok()
-    }
 }
 
 #[cfg(test)]

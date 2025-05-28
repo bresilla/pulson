@@ -10,17 +10,35 @@ use crate::logic::client::config::{show, set}; // Import show and set directly u
 use logic::config::StatusConfig;
 use std::sync::{Arc, Mutex};
 
+/// Parse host:port combination and return (host, port)
+/// If no port is specified, returns the default port 3030
+fn parse_host_port(host_input: &str) -> (String, u16) {
+    if let Some(colon_pos) = host_input.rfind(':') {
+        let host_part = &host_input[..colon_pos];
+        let port_part = &host_input[colon_pos + 1..];
+        
+        if let Ok(port) = port_part.parse::<u16>() {
+            (host_part.to_string(), port)
+        } else {
+            // Colon found but port is not a valid number, treat as host only
+            (host_input.to_string(), 3030)
+        }
+    } else {
+        (host_input.to_string(), 3030)
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Parse command‐line arguments
     let args = Cli::parse();
 
-    // Allow PULSON_IP / PULSON_PORT to override flags
-    let host = std::env::var("PULSON_IP").unwrap_or_else(|_| args.host.clone());
-    let port = std::env::var("PULSON_PORT")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(args.port);
+    // Allow environment variables to override flags
+    let host_input = std::env::var("HOST_IP").unwrap_or_else(|_| args.host.clone());
+    let base_url = std::env::var("BASE_URL").ok().or(args.base_url.clone());
+    
+    // Parse host:port combination
+    let (host, port) = parse_host_port(&host_input);
 
     // Pre‐load token for client commands (List & Ping)
     let token = match &args.command {
@@ -77,6 +95,7 @@ async fn main() -> anyhow::Result<()> {
 
                 // Client: list devices or topics
                 list::run(
+                    base_url,
                     host,
                     port,
                     device_id,
@@ -95,7 +114,7 @@ async fn main() -> anyhow::Result<()> {
                 // Placeholder for delete device logic
                 // println!("Deleting device: {}", device_id);
                 // TODO: Implement actual device deletion logic e.g.:
-                device::delete(host, port, device_id, token.unwrap()).await?
+                device::delete(base_url, host, port, device_id, token.unwrap()).await?
             }
         },
 
@@ -115,6 +134,7 @@ async fn main() -> anyhow::Result<()> {
         } => {
             // Client: send a unified pulse (ping or data)
             pulse::run(
+                base_url,
                 host, 
                 port, 
                 device_id, 
@@ -140,13 +160,13 @@ async fn main() -> anyhow::Result<()> {
                     username,
                     password,
                     rootpass,
-                } => account::register(host, port, username, password, rootpass).await?,
+                } => account::register(base_url, host, port, username, password, rootpass).await?,
                 AccountAction::Login { username, password } => {
-                    account::login(host, port, username, password).await?
+                    account::login(base_url, host, port, username, password).await?
                 }
-                AccountAction::Logout => account::logout(host, port).await?, // Modified this line
-                AccountAction::Delete { username } => account::delete(host, port, username).await?,
-                AccountAction::List => account::list_users(host, port).await?,
+                AccountAction::Logout => account::logout(base_url, host, port).await?, // Modified this line
+                AccountAction::Delete { username } => account::delete(base_url, host, port, username).await?,
+                AccountAction::List => account::list_users(base_url, host, port).await?,
             }
         }
 

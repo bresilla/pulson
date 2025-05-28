@@ -1,5 +1,6 @@
 use reqwest::Client;
 use serde::Serialize;
+use crate::logic::client::url_utils::build_api_url;
 
 #[derive(Serialize)]
 struct DeleteDeviceRequest {
@@ -7,13 +8,14 @@ struct DeleteDeviceRequest {
 }
 
 pub async fn delete(
+    base_url: Option<String>,
     host: String,
     port: u16,
     device_id: String,
     token: String,
 ) -> anyhow::Result<()> {
     let client = Client::new();
-    let url = format!("http://{}:{}/device/delete", host, port);
+    let url = build_api_url(base_url.as_deref(), &host, port, "/device/delete");
 
     let response = client
         .post(&url)

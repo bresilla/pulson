@@ -1,6 +1,7 @@
 use crate::cli::{OutputFormat, SortBy, StatusFilter};
 use crate::logic::config::StatusConfig;
 use crate::logic::types::{DeviceInfo, TopicInfo, DeviceStatus, TopicStatus};
+use crate::logic::client::url_utils::build_api_url;
 use chrono::Utc;
 use reqwest::Client;
 use serde_json;
@@ -227,6 +228,7 @@ fn display_topics_compact(topics: &[TopicInfo], device_id: &str, _config: &Statu
 }
 
 pub async fn run(
+    base_url: Option<String>,
     host: String,
     port: u16,
     device_id: Option<String>,
@@ -252,7 +254,7 @@ pub async fn run(
             println!("{} {}", "Last updated:".bright_cyan(), Utc::now().format("%Y-%m-%d %H:%M:%S UTC"));
             println!();
 
-            if let Err(e) = run_single_fetch(&client, &host, port, &device_id, &token, &format, &sort, &status, extended, &config).await {
+            if let Err(e) = run_single_fetch(&client, base_url.as_deref(), &host, port, &device_id, &token, &format, &sort, &status, extended, &config).await {
                 eprintln!("{} {}", "Error:".red().bold(), e);
             }
 
@@ -260,11 +262,12 @@ pub async fn run(
         }
     } else {
         // Single fetch
-        run_single_fetch(&client, &host, port, &device_id, &token, &format, &sort, &status, extended, &config).await
+        run_single_fetch(&client, base_url.as_deref(), &host, port, &device_id, &token, &format, &sort, &status, extended, &config).await
     }
 }
 async fn run_single_fetch(
     client: &Client,
+    base_url: Option<&str>,
     host: &str,
     port: u16,
     device_id: &Option<String>,
@@ -277,7 +280,7 @@ async fn run_single_fetch(
 ) -> anyhow::Result<()> {
     if let Some(dev) = device_id {
         // Fetch topics for specific device
-        let url = format!("http://{}:{}/api/devices/{}", host, port, dev);
+        let url = build_api_url(base_url, host, port, &format!("/api/devices/{}", dev));
         let resp = client.get(&url).bearer_auth(token).send().await?;
 
         if !resp.status().is_success() {
@@ -327,7 +330,7 @@ async fn run_single_fetch(
         }
     } else {
         // Fetch all devices
-        let url = format!("http://{}:{}/api/devices", host, port);
+        let url = build_api_url(base_url, host, port, "/api/devices");
         let resp = client.get(&url).bearer_auth(token).send().await?;
 
         if !resp.status().is_success() {

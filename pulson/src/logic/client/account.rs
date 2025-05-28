@@ -3,6 +3,7 @@ use reqwest::Client;
 use serde::Serialize;
 use serde_json::Value;
 use std::{fs, io};
+use crate::logic::client::url_utils::build_api_url;
 
 #[derive(Serialize)]
 struct AccountPayload<'a> {
@@ -26,13 +27,14 @@ pub fn read_token() -> io::Result<String> {
 }
 
 pub async fn register(
+    base_url: Option<String>,
     host: String,
     port: u16,
     username: String,
     password: String,
     rootpass: Option<String>,
 ) -> anyhow::Result<()> {
-    let url = format!("http://{}:{}/api/account/register", host, port);
+    let url = build_api_url(base_url.as_deref(), &host, port, "/api/account/register");
     let payload = AccountPayload {
         username: &username,
         password: &password,
@@ -48,12 +50,13 @@ pub async fn register(
 }
 
 pub async fn login(
+    base_url: Option<String>,
     host: String,
     port: u16,
     username: String,
     password: String,
 ) -> anyhow::Result<()> {
-    let url = format!("http://{}:{}/api/account/login", host, port);
+    let url = build_api_url(base_url.as_deref(), &host, port, "/api/account/login");
     let payload = AccountPayload {
         username: &username,
         password: &password,
@@ -75,7 +78,11 @@ pub async fn login(
     Ok(())
 }
 
-pub async fn logout(host: String, port: u16) -> anyhow::Result<()> {
+pub async fn logout(
+    base_url: Option<String>,
+    host: String,
+    port: u16,
+) -> anyhow::Result<()> {
     let token = match read_token() {
         Ok(t) => t,
         Err(_) => {
@@ -84,7 +91,7 @@ pub async fn logout(host: String, port: u16) -> anyhow::Result<()> {
         }
     };
 
-    let url = format!("http://{}:{}/api/account/logout", host, port);
+    let url = build_api_url(base_url.as_deref(), &host, port, "/api/account/logout");
     let client = Client::new();
     let resp = client
         .post(&url)
@@ -109,7 +116,12 @@ pub async fn logout(host: String, port: u16) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn delete(host: String, port: u16, target: String) -> anyhow::Result<()> {
+pub async fn delete(
+    base_url: Option<String>,
+    host: String,
+    port: u16,
+    target: String,
+) -> anyhow::Result<()> {
     let token = match read_token() {
         Ok(t) => t,
         Err(_) => {
@@ -117,7 +129,7 @@ pub async fn delete(host: String, port: u16, target: String) -> anyhow::Result<(
             return Ok(());
         }
     };
-    let url = format!("http://{}:{}/api/account/{}", host, port, target);
+    let url = build_api_url(base_url.as_deref(), &host, port, &format!("/api/account/{}", target));
     let resp = Client::new().delete(&url).bearer_auth(token).send().await?;
     if resp.status().is_success() {
         println!("✓ Deleted user `{}`", target);
@@ -128,7 +140,11 @@ pub async fn delete(host: String, port: u16, target: String) -> anyhow::Result<(
 }
 
 /// List all users (must be root)
-pub async fn list_users(host: String, port: u16) -> anyhow::Result<()> {
+pub async fn list_users(
+    base_url: Option<String>,
+    host: String,
+    port: u16,
+) -> anyhow::Result<()> {
     let token = match read_token() {
         Ok(t) => t,
         Err(_) => {
@@ -137,7 +153,7 @@ pub async fn list_users(host: String, port: u16) -> anyhow::Result<()> {
         }
     };
 
-    let url = format!("http://{}:{}/api/account/users", host, port);
+    let url = build_api_url(base_url.as_deref(), &host, port, "/api/account/users");
     let resp = Client::new().get(&url).bearer_auth(token).send().await?;
 
     if !resp.status().is_success() {

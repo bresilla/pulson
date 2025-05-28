@@ -1,5 +1,6 @@
 use crate::logic::config::StatusConfig;
 use crate::logic::client::account::read_token;
+use crate::logic::client::url_utils::build_api_url;
 use colored::*;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -126,13 +127,14 @@ async fn fetch_user_config() -> anyhow::Result<StatusConfig> {
     let token = read_token()
         .map_err(|_| anyhow::anyhow!("Not logged in. Please run 'pulson account login' first."))?;
 
-    let host = std::env::var("PULSON_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let host = std::env::var("HOST_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
     let port = std::env::var("PULSON_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(3030);
+    let base_url = std::env::var("BASE_URL").ok();
     
-    let url = format!("http://{}:{}/api/user/config", host, port);
+    let url = build_api_url(base_url.as_deref(), &host, port, "/api/user/config");
     
     let client = Client::new();
     let response = client
@@ -159,13 +161,14 @@ async fn update_user_config(config: &StatusConfig) -> anyhow::Result<()> {
     let token = read_token()
         .map_err(|_| anyhow::anyhow!("Not logged in. Please run 'pulson account login' first."))?;
 
-    let host = std::env::var("PULSON_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let host = std::env::var("HOST_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
     let port = std::env::var("PULSON_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(3030);
+    let base_url = std::env::var("BASE_URL").ok();
     
-    let url = format!("http://{}:{}/api/user/config", host, port);
+    let url = build_api_url(base_url.as_deref(), &host, port, "/api/user/config");
     
     let request = ConfigUpdateRequest {
         online_threshold_seconds: config.online_threshold_seconds,

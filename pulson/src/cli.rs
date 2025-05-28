@@ -41,13 +41,13 @@ pub enum DataType {
 #[derive(Parser)]
 #[command(name = "pulson")]
 pub struct Cli {
-    /// Address to bind (serve) or connect to (client)
-    #[arg(short = 'H', long, default_value = "127.0.0.1")]
+    /// Address to bind (serve) or connect to (client). Can include port (e.g., 127.0.0.1:3030)
+    #[arg(short = 'H', long, default_value = "127.0.0.1:3030")]
     pub host: String,
 
-    /// Port to bind or connect to
-    #[arg(short, long, default_value_t = 3030)]
-    pub port: u16,
+    /// Base URL for client connections (overrides host, includes protocol, e.g., https://sub.domain.com)
+    #[arg(short = 'U', long)]
+    pub base_url: Option<String>,
 
     #[command(subcommand)]
     pub command: Commands,
