@@ -1,0 +1,67 @@
+/* Login form styles */
+
+/* Login Form Styles */
+body:has(.login-form) {
+    display: flex;
+    height: 100vh;
+    align-items: center;
+    justify-content: center;
+    background: #2a2a30;
+}
+
+form {
+    background: #1c1c22;
+    padding: 2.5rem;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 400px;
+}
+
+form h2 {
+    margin-bottom: 1.5rem;
+    text-align: center;
+    color: #f0f0f0;
+    font-weight: 600;
+}
+
+form input {
+    width: 100%;
+    padding: 0.85rem;
+    margin-bottom: 1rem;
+    border: 1px solid #3a3a40;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background: #25252b;
+    color: #d0d0d0;
+}
+
+form input:focus {
+    outline: none;
+    border-color: #eb1c24;
+    box-shadow: 0 0 0 2px rgba(235, 28, 36, 0.2);
+}
+
+form input::placeholder {
+    color: #888888;
+}
+
+form button {
+    width: 100%;
+    padding: 0.875rem;
+    background: #eb1c24;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+form button:hover {
+    background-color: #c91820;
+    transform: none;
+    box-shadow: none;
+}
