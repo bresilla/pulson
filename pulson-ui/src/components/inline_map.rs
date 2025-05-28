@@ -409,5 +409,12 @@ fn extract_coordinates(data: &serde_json::Value) -> Option<(f64, f64)> {
         }
     }
     
+    // Format: {"GPS": {"lat": 40.7128, "lon": -74.0060}} - New type system format
+    if let Some(gps) = data["GPS"].as_object() {
+        if let (Some(lat), Some(lng)) = (gps["lat"].as_f64(), gps["lon"].as_f64()) {
+            return Some((lat, lng));
+        }
+    }
+    
     None
 }

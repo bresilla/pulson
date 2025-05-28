@@ -424,26 +424,41 @@ pub fn dashboard() -> Html {
                                             </div> // End of topic-main-row
                                             if is_topic_selected {
                                                 <div class="topic-details">
-                                                    if topic.data_type == "ping" {
+                                                    if topic.data_type == "pulse" {
                                                         <PulseVisualization
                                                             device_id={device_id_for_pulse}
                                                             topic={Some(topic_name.clone())}
                                                         />
-                                                    } else if topic.data_type == "array" && (
-                                                        topic_name.to_lowercase().contains("location") ||
-                                                        topic_name.to_lowercase().contains("coordinates") ||
-                                                        topic_name.to_lowercase().contains("gps") ||
-                                                        topic_name.to_lowercase().contains("position")
-                                                    ) {
+                                                    } else if topic.data_type == "gps" {
                                                         <InlineMap
                                                             device_id={device_id_for_pulse}
                                                             topic={topic_name.clone()}
                                                         />
+                                                    } else if topic.data_type == "sensor" {
+                                                        <div class="sensor-visualization">
+                                                            <h4>{"Sensor Data: "}{&topic.topic}</h4>
+                                                            <p>{"Latest sensor reading visualization will be implemented here"}</p>
+                                                        </div>
+                                                    } else if topic.data_type == "trigger" {
+                                                        <div class="trigger-visualization">
+                                                            <h4>{"Trigger State: "}{&topic.topic}</h4>
+                                                            <p>{"Digital trigger state visualization will be implemented here"}</p>
+                                                        </div>
+                                                    } else if topic.data_type == "event" {
+                                                        <div class="event-visualization">
+                                                            <h4>{"Event Log: "}{&topic.topic}</h4>
+                                                            <p>{"Event message history will be implemented here"}</p>
+                                                        </div>
+                                                    } else if topic.data_type == "image" {
+                                                        <div class="image-visualization">
+                                                            <h4>{"Image Data: "}{&topic.topic}</h4>
+                                                            <p>{"Image display will be implemented here"}</p>
+                                                        </div>
                                                     } else {
                                                         <div class="unimplemented-message">
                                                             <h4>{"Data Type: "}{&topic.data_type.to_uppercase()}</h4>
                                                             <p class="unimplemented-text">{"Visualization for this data type is not yet implemented"}</p>
-                                                            <small class="unimplemented-hint">{"Currently only PING data type visualization is supported"}</small>
+                                                            <small class="unimplemented-hint">{"Supported types: pulse, gps, sensor, trigger, event, image"}</small>
                                                         </div>
                                                     }
                                                 </div>

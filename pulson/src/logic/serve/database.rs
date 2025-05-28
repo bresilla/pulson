@@ -3,6 +3,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use warp::http::StatusCode;
 use serde_json::{json, Value};
+use super::db_types::DataType;
 
 pub type Database = Arc<Mutex<Connection>>;
 
@@ -77,13 +78,13 @@ pub fn init_database<P: AsRef<Path>>(db_path: P) -> anyhow::Result<Database> {
         [],
     )?;
 
-    // Create table for structured data storage
+    // Create table for structured data storage using new type system
     conn.execute(
         "CREATE TABLE IF NOT EXISTS device_data (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             device_id TEXT NOT NULL,
             topic TEXT NOT NULL,
-            data_type TEXT NOT NULL CHECK(data_type IN ('ping', 'event', 'value', 'array', 'bytes')),
+            data_type TEXT NOT NULL CHECK(data_type IN ('pulse', 'gps', 'sensor', 'trigger', 'event', 'image')),
             data_payload TEXT NOT NULL,
             timestamp DATETIME NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -92,14 +93,9 @@ pub fn init_database<P: AsRef<Path>>(db_path: P) -> anyhow::Result<Database> {
         [],
     )?;
 
-    // Migration: Clean up any old structural_type column if it exists
-    let _ = conn.execute(
-        "CREATE TABLE device_data_new AS SELECT id, device_id, topic, data_type, data_payload, timestamp, created_at FROM device_data",
-        [],
-    );
-    let _ = conn.execute("DROP TABLE device_data", []);
-    let _ = conn.execute("ALTER TABLE device_data_new RENAME TO device_data", []);
-
+    // Migration: Update existing data to new type system if needed
+    let _ = conn.execute("DROP TABLE IF EXISTS device_data_old", []);
+    
     // Create indexes for better query performance
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_pulse_history_device_timestamp 
@@ -311,49 +307,6 @@ pub fn get_user_config_or_default(db: &Database, username: &str) -> crate::logic
 }
 
 // Device management functions
-pub fn store_device_data(db: &Database, device_id: &str, name: Option<&str>, data: &str, timestamp: &str) -> Result<(), StatusCode> {
-    let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    // Parse the data to extract topic information
-    let parsed_data: serde_json::Value = serde_json::from_str(data)
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-    
-    let topic = parsed_data.get("topic")
-        .and_then(|v| v.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    // Handle device insertion/update more carefully
-    if let Some(device_name) = name {
-        // If a name is provided, insert new device or update both name and timestamp
-        conn.execute(
-            "INSERT INTO devices (id, name, last_seen) VALUES (?1, ?2, ?3) 
-             ON CONFLICT(id) DO UPDATE SET name = excluded.name, last_seen = excluded.last_seen",
-            [device_id, device_name, timestamp],
-        ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    } else {
-        // If no name is provided, only update timestamp, preserve existing name
-        conn.execute(
-            "INSERT INTO devices (id, name, last_seen) VALUES (?1, NULL, ?2) 
-             ON CONFLICT(id) DO UPDATE SET last_seen = excluded.last_seen",
-            [device_id, timestamp],
-        ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    }
-    
-    // Then, insert or update the topic record
-    conn.execute(
-        "INSERT INTO topics (device_id, topic, last_seen) VALUES (?1, ?2, ?3) 
-         ON CONFLICT(device_id, topic) DO UPDATE SET last_seen = excluded.last_seen",
-        [device_id, topic, timestamp],
-    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    // Store historical pulse data
-    conn.execute(
-        "INSERT INTO pulse_history (device_id, topic, timestamp) VALUES (?1, ?2, ?3)",
-        [device_id, topic, timestamp],
-    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    Ok(())
-}
 
 pub fn get_device_data(db: &Database, device_id: &str, status_config: &crate::logic::config::StatusConfig) -> Result<Option<String>, StatusCode> {
     let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -606,24 +559,34 @@ pub fn get_pulse_stats(db: &Database, device_id: &str, time_range: &str) -> Resu
     }))
 }
 
-/// Store structured data for a device
-pub fn store_device_data_payload(
+/// Store data for a device using the new type system
+pub fn store_device_data(
     db: &Database, 
     device_id: &str, 
-    name: Option<&str>, 
+    device_name: Option<&str>, 
     topic: &str,
-    data_type: &str,
-    data_payload: &serde_json::Value,
+    raw_data: &serde_json::Value,
     timestamp: &str
 ) -> Result<(), StatusCode> {
     let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
+    // Parse the raw data into our type system
+    let data_type = match DataType::from_json(raw_data, topic) {
+        Some(dt) => dt,
+        None => {
+            // Fallback to event type for unrecognized data
+            DataType::Event { 
+                message: format!("Unrecognized data: {}", raw_data.to_string()) 
+            }
+        }
+    };
+    
     // Handle device insertion/update
-    if let Some(device_name) = name {
+    if let Some(name) = device_name {
         conn.execute(
             "INSERT INTO devices (id, name, last_seen) VALUES (?1, ?2, ?3) 
              ON CONFLICT(id) DO UPDATE SET name = excluded.name, last_seen = excluded.last_seen",
-            [device_id, device_name, timestamp],
+            [device_id, name, timestamp],
         ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     } else {
         conn.execute(
@@ -647,13 +610,26 @@ pub fn store_device_data_payload(
         [
             device_id, 
             topic, 
-            data_type,
-            &data_payload.to_string(), 
+            data_type.type_name(),
+            &data_type.to_json().to_string(), 
             timestamp
         ],
     ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
     Ok(())
+}
+
+/// Legacy function for backward compatibility - delegates to new store_device_data
+pub fn store_device_data_payload(
+    db: &Database, 
+    device_id: &str, 
+    name: Option<&str>, 
+    topic: &str,
+    _data_type: &str, // Ignored - we detect the type from the data
+    data_payload: &serde_json::Value,
+    timestamp: &str
+) -> Result<(), StatusCode> {
+    store_device_data(db, device_id, name, topic, data_payload, timestamp)
 }
 
 /// Get latest data for a device and topic

@@ -42,35 +42,11 @@ pub fn pulse(
             
             match &payload.data {
                 Some(data_value) => {
-                    // Determine the single data type based on the JSON structure
-                    let data_type = match data_value {
-                        serde_json::Value::Number(_) => "value",
-                        serde_json::Value::String(_) => "event", 
-                        serde_json::Value::Array(_) => "array",
-                        serde_json::Value::Null => "ping",
-                        serde_json::Value::Bool(_) => "value", // Treat boolean as value
-                        serde_json::Value::Object(obj) => {
-                            // For objects, look at the first value to determine type
-                            if let Some((_, value)) = obj.iter().next() {
-                                match value {
-                                    serde_json::Value::Number(_) => "value",
-                                    serde_json::Value::String(_) => "event",
-                                    serde_json::Value::Array(_) => "array",
-                                    serde_json::Value::Null => "ping",
-                                    serde_json::Value::Bool(_) => "value",
-                                    _ => "value", // Default to value for nested objects
-                                }
-                            } else {
-                                "ping" // Empty object treated as ping
-                            }
-                        }
-                    };
-                    
-                    // Store structured data with the determined type
-                    match store_device_data_payload(&db, &device_id, Some(&payload.device_id), &payload.topic, data_type, data_value, &ts) {
+                    // Store data using new type system - it will automatically detect the type
+                    match store_device_data_payload(&db, &device_id, Some(&payload.device_id), &payload.topic, "", data_value, &ts) {
                         Ok(_) => {
-                            println!("Pulse with {} data from device {} (user: {}) - topic: {}", 
-                                data_type, payload.device_id, username, payload.topic);
+                            println!("Data pulse from device {} (user: {}) - topic: {}", 
+                                payload.device_id, username, payload.topic);
                             with_status(
                                 warp_json(&serde_json::json!({ "message": "pulse with data received" })),
                                 StatusCode::OK,
@@ -86,10 +62,10 @@ pub fn pulse(
                     }
                 }
                 None => {
-                    // Handle simple ping - store as ping data
+                    // Handle simple ping - store as null data
                     let ping_data = serde_json::json!(null);
                     
-                    match store_device_data_payload(&db, &device_id, Some(&payload.device_id), &payload.topic, "ping", &ping_data, &ts) {
+                    match store_device_data_payload(&db, &device_id, Some(&payload.device_id), &payload.topic, "", &ping_data, &ts) {
                         Ok(_) => {
                             println!("Ping pulse from device {} (user: {})", payload.device_id, username);
                             with_status(

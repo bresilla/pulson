@@ -1,6 +1,7 @@
 pub mod api;
 pub mod auth;
 pub mod database;
+pub mod db_types;
 pub mod ui;
 
 use crate::logic::serve::api::api_routes;
