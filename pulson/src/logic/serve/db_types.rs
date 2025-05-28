@@ -76,10 +76,31 @@ impl DataType {
                     return Some(DataType::Pulse);
                 }
                 
-                // Check for GPS object patterns
+                // Check for nested GPS object pattern like {"GPS": {"lat": ..., "lon": ..., "alt": ...}}
+                if let Some(gps_obj) = obj.get("GPS").and_then(|v| v.as_object()) {
+                    if let Some(gps) = Self::parse_gps_object(gps_obj) {
+                        return Some(gps);
+                    }
+                }
+                
+                // Check for GPS object patterns directly in the object
                 if Self::is_gps_topic(topic) {
                     if let Some(gps) = Self::parse_gps_object(obj) {
                         return Some(gps);
+                    }
+                }
+                
+                // Check for nested image object pattern like {"image": {"rows": ..., "cols": ..., ...}}
+                if let Some(image_obj) = obj.get("image").and_then(|v| v.as_object()) {
+                    if let Some(image) = Self::parse_image_object(image_obj) {
+                        return Some(image);
+                    }
+                }
+                
+                // Check for image object patterns directly in the object
+                if Self::is_image_topic(topic) {
+                    if let Some(image) = Self::parse_image_object(obj) {
+                        return Some(image);
                     }
                 }
                 
@@ -93,11 +114,9 @@ impl DataType {
                     return Some(trigger);
                 }
                 
-                // Check for image object patterns
-                if Self::is_image_topic(topic) {
-                    if let Some(image) = Self::parse_image_object(obj) {
-                        return Some(image);
-                    }
+                // Check for event object patterns (should come last as fallback)
+                if let Some(event) = Self::parse_event_object(obj) {
+                    return Some(event);
                 }
                 
                 None
@@ -196,6 +215,16 @@ impl DataType {
         } else {
             None
         }
+    }
+
+    /// Parse event data from object
+    fn parse_event_object(obj: &serde_json::Map<String, serde_json::Value>) -> Option<DataType> {
+        let message = obj.get("event")
+            .or_else(|| obj.get("message"))
+            .or_else(|| obj.get("msg"))
+            .and_then(|v| v.as_str())?;
+            
+        Some(DataType::Event { message: message.to_string() })
     }
 
     /// Serialize to JSON for database storage

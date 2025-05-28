@@ -99,9 +99,38 @@ async fn main() -> anyhow::Result<()> {
             }
         },
 
-        Commands::Pulse { device_id, topic, data } => {
+        Commands::Pulse { 
+            device_id, 
+            topic, 
+            data_type,
+            data,
+            latitude,
+            longitude, 
+            altitude,
+            value,
+            state,
+            message,
+            width,
+            height,
+        } => {
             // Client: send a unified pulse (ping or data)
-            pulse::run(host, port, device_id, topic, data, token.unwrap()).await?
+            pulse::run(
+                host, 
+                port, 
+                device_id, 
+                topic, 
+                data_type,
+                data,
+                latitude,
+                longitude,
+                altitude,
+                value,
+                state,
+                message,
+                width,
+                height,
+                token.unwrap()
+            ).await?
         }
 
         Commands::Account { action } => {

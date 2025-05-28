@@ -27,6 +27,16 @@ pub enum SortBy {
     PingCount,
 }
 
+#[derive(Clone, ValueEnum)]
+pub enum DataType {
+    Pulse,
+    Gps,
+    Sensor,
+    Trigger,
+    Event,
+    Image,
+}
+
 /// realtime system/robot monitoring and tracing
 #[derive(Parser)]
 #[command(name = "pulson")]
@@ -79,7 +89,7 @@ pub enum Commands {
         action: DeviceAction,
     },
 
-    /// Send a unified pulse with optional map-based data payload  
+    /// Send a pulse with specific data type
     Pulse {
         /// Device identifier
         #[arg(short = 'd', long)]
@@ -87,9 +97,36 @@ pub enum Commands {
         /// Topic for the pulse
         #[arg(short = 't', long)]
         topic: String,
-        /// Optional map-based data payload in JSON format (e.g., {"map":[lat,lon,alt]}, {"sensor":val}, {"ping":null})
+        /// Data type to send (default: pulse)
+        #[arg(long, default_value = "pulse")]
+        data_type: DataType,
+        /// Custom JSON data payload (overrides data type defaults)
         #[arg(value_name = "JSON_DATA")]
         data: Option<String>,
+        /// Latitude for GPS data type
+        #[arg(long, requires = "longitude")]
+        latitude: Option<f64>,
+        /// Longitude for GPS data type  
+        #[arg(long, requires = "latitude")]
+        longitude: Option<f64>,
+        /// Altitude for GPS data type (optional)
+        #[arg(long)]
+        altitude: Option<f64>,
+        /// Sensor value for sensor data type
+        #[arg(long)]
+        value: Option<f64>,
+        /// State for trigger data type (true/false)
+        #[arg(long)]
+        state: Option<bool>,
+        /// Message for event data type
+        #[arg(long)]
+        message: Option<String>,
+        /// Image width for image data type
+        #[arg(long)]
+        width: Option<u32>,
+        /// Image height for image data type
+        #[arg(long)]
+        height: Option<u32>,
     },
 
     /// User account management (register, login, logout, delete, list)
