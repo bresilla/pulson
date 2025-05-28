@@ -1,9 +1,13 @@
 # Changelog
 
-## [1.0.2] - 2025-05-27
+## [1.1.0] - 2025-05-28
 
 ### <!-- 0 -->⛰️  Features
 
+- Add responsive mobile header with menu
+- Refactor pulse command to accept data payloads
+- Refactor data type handling for dashboard changes
+- Implement inline map component and related features
 - Feat: Add structured data pulse protocol
 - Merge pulse and ping commands under a unified API
 - Feat: Implement support for structured device data
@@ -43,6 +47,10 @@
 - Add Rust database initial implementation
 - Init
 
+### <!-- 1 -->🐛 Bug Fixes
+
+- Fix map invalidation and initialization timeout
+
 ### <!-- 2 -->🚜 Refactor
 
 - Remove unused device routes
@@ -57,6 +65,8 @@
 
 ### <!-- 3 -->📚 Documentation
 
+- Update example topics in README
+- Update documentation for automatic data type detection
 - Update dependency names in documentation
 - Remove extra markdown headings
 - Update Rust installation and WASM build steps
@@ -64,6 +74,7 @@
 
 ### <!-- 5 -->🎨 Styling
 
+- Polish UI elements and clean up temporary files
 - Refactor user settings UI and styling
 - Style user menu and playlist icons
 - Refactor and adjust status display styling
