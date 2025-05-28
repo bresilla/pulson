@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.1.0] - 2025-05-28
+## [1.2.0] - 2025-05-28
 
 ### <!-- 0 -->⛰️  Features
 
@@ -53,6 +53,8 @@
 
 ### <!-- 2 -->🚜 Refactor
 
+- Use environment variables for host and base URL
+- Refactor client URL building and connection options
 - Remove unused device routes
 - Refactor and clean up API and utility files
 - Migrate API and database to use SQLite
@@ -99,6 +101,7 @@
 
 ### Build
 
+- Refactor CSS to use modular stylesheets
 - Update crate versions during releases
 - Integrate web UI with devbox and rust build
 - Build the web UI as WASM
