@@ -5,6 +5,21 @@ use colored::*;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+fn parse_host_port(host_input: &str, default_port: u16) -> (String, u16) {
+    if let Some(colon_pos) = host_input.rfind(':') {
+        let host_part = &host_input[..colon_pos];
+        let port_part = &host_input[colon_pos + 1..];
+        
+        if let Ok(port) = port_part.parse::<u16>() {
+            (host_part.to_string(), port)
+        } else {
+            (host_input.to_string(), default_port)
+        }
+    } else {
+        (host_input.to_string(), default_port)
+    }
+}
+
 #[derive(Deserialize)]
 struct ConfigResponse {
     online_threshold_seconds: u64,
@@ -127,12 +142,9 @@ async fn fetch_user_config() -> anyhow::Result<StatusConfig> {
     let token = read_token()
         .map_err(|_| anyhow::anyhow!("Not logged in. Please run 'pulson account login' first."))?;
 
-    let host = std::env::var("HOST_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = std::env::var("PULSON_PORT")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(3030);
-    let base_url = std::env::var("BASE_URL").ok();
+    let host_input = std::env::var("PULSON_HOST_IP").unwrap_or_else(|_| "127.0.0.1:3030".to_string());
+    let (host, port) = parse_host_port(&host_input, 3030);
+    let base_url = std::env::var("PULSON_BASE_URL").ok();
     
     let url = build_api_url(base_url.as_deref(), &host, port, "/api/user/config");
     
@@ -161,12 +173,9 @@ async fn update_user_config(config: &StatusConfig) -> anyhow::Result<()> {
     let token = read_token()
         .map_err(|_| anyhow::anyhow!("Not logged in. Please run 'pulson account login' first."))?;
 
-    let host = std::env::var("HOST_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = std::env::var("PULSON_PORT")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(3030);
-    let base_url = std::env::var("BASE_URL").ok();
+    let host_input = std::env::var("PULSON_HOST_IP").unwrap_or_else(|_| "127.0.0.1:3030".to_string());
+    let (host, port) = parse_host_port(&host_input, 3030);
+    let base_url = std::env::var("PULSON_BASE_URL").ok();
     
     let url = build_api_url(base_url.as_deref(), &host, port, "/api/user/config");
     

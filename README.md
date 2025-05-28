@@ -1,8 +1,18 @@
 <img align="right" width="26%" src="./book/src/images/logo.png">
 
-# pulson
+# p#### Register
 
-realtime system/robot monitoring and tracing
+```bash
+# Traditional format
+pulson --host 127.0.0.1:3030 account register \
+  --username myuser --password mypassword [--root-pass ROOT_SECRET]
+
+# Modern format (Cloudflare Tunnel)
+pulson --base-url https://sub.domain.com account register \
+  --username myuser --password mypassword [--root-pass ROOT_SECRET]
+```
+
+Use `--root-pass` here if you want this new user to have **root** privileges (matching the server's `--root-pass`).ealtime system/robot monitoring and tracing
 
 ## Usage
 
@@ -22,15 +32,20 @@ Commands:
   help          Print this message or the help of the given subcommand(s)
 
 Options:
-  -H, --host <HOST>        Address to bind (serve) or connect to (client) [default: 127.0.0.1]
-  -p, --port <PORT>        Port to bind or connect to [default: 3030]
+  -H, --host <HOST>        Address to bind (serve) or connect to (client). Can include port (e.g., 127.0.0.1:3030) [default: 127.0.0.1:3030]
+  -U, --base-url <BASE_URL> Base URL for client connections (overrides host, includes protocol, e.g., https://sub.domain.com)
   -h, --help               Print help
 ```
 
 ### Server
 
 ```bash
-pulson --host 127.0.0.1 --port 3030 serve \
+# Traditional host:port format
+pulson --host 127.0.0.1:3030 serve \
+  --db-path ~/.local/share/pulson [--root-pass <ROOT_SECRET>]
+
+# Using environment variable
+PULSON_HOST_IP=127.0.0.1:3030 pulson serve \
   --db-path ~/.local/share/pulson [--root-pass <ROOT_SECRET>]
 ```
 
@@ -39,6 +54,28 @@ If you supply the correct `--root-pass` when starting the server, the first user
 The server provides a web dashboard at `http://127.0.0.1:3030` that displays real-time device status using the configured thresholds.
 
 ### Client
+
+For client connections, you can use either traditional host:port format or modern base URL format:
+
+#### Traditional Configuration (Local/LAN)
+```bash
+# Command line
+pulson --host 127.0.0.1:3030 device list
+
+# Environment variable
+export PULSON_HOST_IP=127.0.0.1:3030
+pulson device list
+```
+
+#### Modern Configuration (Cloudflare Tunnel/HTTPS)
+```bash
+# Command line
+pulson --base-url https://sub.domain.com device list
+
+# Environment variable
+export PULSON_BASE_URL=https://sub.domain.com
+pulson device list
+```
 
 #### Register
 
@@ -52,20 +89,20 @@ Use `--root-pass` here if you want this new user to have **root** privileges (ma
 #### Login
 
 ```bash
-pulson --host 127.0.0.1 --port 3030 account login \
+pulson --host 127.0.0.1:3030 account login \
   --username myuser --password mypassword
 ```
 
 #### Logout
 
 ```bash
-pulson --host 127.0.0.1 --port 3030 account logout
+pulson --host 127.0.0.1:3030 account logout
 ```
 
 #### Delete User (root only)
 
 ```bash
-pulson --host 127.0.0.1 --port 3030 account delete <USERNAME>
+pulson --host 127.0.0.1:3030 account delete <USERNAME>
 ```
 
 Only **root** users can delete other accounts.
@@ -73,7 +110,7 @@ Only **root** users can delete other accounts.
 #### List All Users (root only)
 
 ```bash
-pulson --host 127.0.0.1 --port 3030 account list
+pulson --host 127.0.0.1:3030 account list
 ```
 
 Only **root** users can list all registered users and their roles.
@@ -81,13 +118,13 @@ Only **root** users can list all registered users and their roles.
 #### List Devices
 
 ```bash
-pulson --host 127.0.0.1 --port 3030 list
+pulson --host 127.0.0.1:3030 device list
 ```
 
 #### List Topics for a Device
 
 ```bash
-pulson --host 127.0.0.1 --port 3030 device list <DEVICE_ID>
+pulson --host 127.0.0.1:3030 device list <DEVICE_ID>
 ```
 
 #### Send Pulse Data
@@ -97,7 +134,7 @@ The unified `pulse` command provides a single interface for sending both simple 
 ##### Simple Ping (automatic)
 When no data is provided, the command automatically sends a ping pulse:
 ```bash
-pulson --host 127.0.0.1 --port 3030 pulse \
+pulson --host 127.0.0.1:3030 pulse \
   --device-id mydevice --topic "sensors"
 ```
 
@@ -129,16 +166,55 @@ pulson pulse -d mydevice -t /just/heartbeat '{"ping":null}'
 - **Objects with null values**: Categorized as `ping` type
 - **No data provided**: Automatically sends `{"ping":null}` as `ping` type
 
-You can set environment variables PULSON_IP and PULSON_PORT to avoid typing --host/--port every time:
+You can set environment variables PULSON_HOST_IP and PULSON_BASE_URL to avoid typing connection parameters every time:
 
 ```bash
-export PULSON_IP=127.0.0.1
-export PULSON_PORT=3030
+# Traditional format (local/LAN)
+export PULSON_HOST_IP=127.0.0.1:3030
+pulson device list
+pulson pulse -d foo -t bar                    # Simple ping
+pulson pulse -d robot1 -t /top/location '{"coordinates":[lat, lon, alt]}'  # Structured data
 
+# Modern format (Cloudflare Tunnel/HTTPS)
+export PULSON_BASE_URL=https://sub.domain.com
 pulson device list
 pulson pulse -d foo -t bar                    # Simple ping
 pulson pulse -d robot1 -t /top/location '{"coordinates":[lat, lon, alt]}'  # Structured data
 ```
+
+## Deployment Options
+
+### Local/LAN Deployment (Traditional)
+
+For local development or LAN deployment, use the traditional host:port format:
+
+```bash
+# Server
+pulson --host 127.0.0.1:3030 serve --db-path ~/.local/share/pulson
+
+# Clients
+export PULSON_HOST_IP=127.0.0.1:3030
+pulson device list
+```
+
+### Cloudflare Tunnel Deployment (Modern)
+
+For secure internet deployment using Cloudflare Tunnel, use the base URL format:
+
+1. **Set up Cloudflare Tunnel** pointing to your local server (127.0.0.1:3030)
+2. **Start the server locally**:
+   ```bash
+   pulson --host 127.0.0.1:3030 serve --db-path ~/.local/share/pulson
+   ```
+
+3. **Configure clients to use the tunnel URL**:
+   ```bash
+   export PULSON_BASE_URL=https://sub.domain.com
+   pulson device list
+   pulson pulse -d mydevice -t sensors '{"temperature": 23.5}'
+   ```
+
+The `--base-url` parameter (or `PULSON_BASE_URL` environment variable) takes precedence over `--host`, allowing seamless switching between local and tunnel-based deployments.
 
 ## Configuration & Device Status Thresholds
 
@@ -208,8 +284,13 @@ pulson serve --config /path/to/config.toml
 
 #### Environment Variables
 
-Thresholds can be set via environment variables:
+**Connection Configuration:**
+```bash
+export PULSON_HOST_IP=127.0.0.1:3030              # Traditional host:port format
+export PULSON_BASE_URL=https://sub.domain.com  # Modern base URL format (overrides PULSON_HOST_IP)
+```
 
+**Threshold Configuration:**
 ```bash
 export PULSON_ONLINE_THRESHOLD=60
 export PULSON_WARNING_THRESHOLD=600

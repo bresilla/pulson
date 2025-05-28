@@ -34,8 +34,8 @@ async fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
 
     // Allow environment variables to override flags
-    let host_input = std::env::var("HOST_IP").unwrap_or_else(|_| args.host.clone());
-    let base_url = std::env::var("BASE_URL").ok().or(args.base_url.clone());
+    let host_input = std::env::var("PULSON_HOST_IP").unwrap_or_else(|_| args.host.clone());
+    let base_url = std::env::var("PULSON_BASE_URL").ok().or(args.base_url.clone());
     
     // Parse host:port combination
     let (host, port) = parse_host_port(&host_input);

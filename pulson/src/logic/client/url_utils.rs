@@ -32,14 +32,14 @@ mod tests {
 
     #[test]
     fn test_build_api_url_with_base_url() {
-        let url = build_api_url(Some("https://pulse.bresilla.com"), "127.0.0.1", 3030, "/api/devices");
-        assert_eq!(url, "https://pulse.bresilla.com/api/devices");
+        let url = build_api_url(Some("https://sub.domain.com"), "127.0.0.1", 3030, "/api/devices");
+        assert_eq!(url, "https://sub.domain.com/api/devices");
     }
 
     #[test]
     fn test_build_api_url_with_base_url_trailing_slash() {
-        let url = build_api_url(Some("https://pulse.bresilla.com/"), "127.0.0.1", 3030, "/api/devices");
-        assert_eq!(url, "https://pulse.bresilla.com/api/devices");
+        let url = build_api_url(Some("https://sub.domain.com/"), "127.0.0.1", 3030, "/api/devices");
+        assert_eq!(url, "https://sub.domain.com/api/devices");
     }
 
     #[test]
