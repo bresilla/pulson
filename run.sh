@@ -34,7 +34,6 @@ release() {
             ;;
     esac
     version="$MAJOR.$MINOR.$PATCH"
-    echo "New version: $version"
     
     # Get the latest tag to create a range for changelog generation
     LATEST_TAG=$(git tag --list --sort=-version:refname | head -n 1)
