@@ -1644,8 +1644,199 @@ button {
     color: #888;
 }
 
-/* Responsive adjustments for pulse visualization */
+/* ===== MOBILE RESPONSIVENESS ===== */
+
+/* Mobile Navigation Toggle */
+.mobile-menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: #eb1c24;
+    font-size: 1.2rem;
+    font-weight: 300;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.mobile-menu-toggle:hover {
+    background-color: #eb1c24;
+    color: #ffffff;
+}
+
+.mobile-menu-toggle:active {
+    background-color: #eb1c24;
+    color: #ffffff;
+}
+
+.mobile-menu-toggle:hover .hamburger-line,
+.mobile-menu-toggle:active .hamburger-line {
+    background-color: #ffffff;
+}
+
+/* Custom hamburger icon with thin lines */
+.mobile-menu-toggle .hamburger-icon {
+    width: 18px;
+    height: 12px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.mobile-menu-toggle .hamburger-line {
+    width: 100%;
+    height: 1.5px;
+    background-color: #eb1c24;
+    transition: background-color 0.2s ease;
+}
+
+/* Mobile header with logo */
+.mobile-header {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #3a3a40;
+    position: relative;
+}
+
+.mobile-header .mobile-menu-toggle {
+    position: absolute;
+    left: 0;
+}
+
+.mobile-header .nav-logo {
+    height: 35px;
+    width: auto;
+    filter: brightness(1.1);
+}
+
+.mobile-header .brand-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f0f0f0;
+    margin: 0;
+}
+
+/* Mobile Overlay */
+.mobile-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    backdrop-filter: blur(2px);
+}
+
+.mobile-overlay.visible {
+    display: block;
+}
+
+/* Tablet Breakpoint (768px - 1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .sidebar {
+        width: 250px;
+    }
+    
+    .main-content {
+        padding: 20px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+}
+
+/* Mobile Breakpoint (max-width: 768px) */
 @media (max-width: 768px) {
+    /* Show mobile menu toggle and header */
+    .mobile-menu-toggle {
+        display: flex;
+    }
+    
+    .mobile-header {
+        display: flex;
+    }
+    
+    /* Navigation adjustments */
+    .navigation {
+        padding: 0.75rem 1rem;
+    }
+    
+    .nav-brand h1 {
+        font-size: 1.25rem;
+    }
+    
+    .nav-logo {
+        height: 40px;
+    }
+    
+    /* Dashboard container becomes vertical on mobile */
+    .dashboard-container {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+    }
+    
+    /* Sidebar becomes overlay on mobile */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: -320px; /* Hide off-screen initially */
+        width: 300px;
+        height: 100vh;
+        z-index: 1000;
+        transition: left 0.3s ease;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    .sidebar.mobile-open {
+        left: 0; /* Slide in when open */
+    }
+    
+    /* Main content takes full width */
+    .main-content {
+        width: 100%;
+        padding: 15px;
+        margin-top: 0;
+    }
+    
+    /* Topics panel adjustments */
+    .topics-panel h2 {
+        font-size: 1rem;
+        margin-bottom: 10px;
+    }
+    
+    /* Topic items more touch-friendly */
+    .topic-item {
+        padding: 15px;
+        margin-bottom: 8px;
+    }
+    
+    .topic-name {
+        font-size: 0.95rem;
+    }
+    
+    /* Device items more touch-friendly */
+    .device-item {
+        padding: 15px;
+        margin-bottom: 6px;
+    }
+    
+    /* Pulse visualization adjustments */
     .pulse-viz-header {
         flex-direction: column;
         gap: 1rem;
@@ -1654,18 +1845,232 @@ button {
     
     .time-range-selector {
         justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .time-range-btn {
+        min-width: 60px;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
     }
     
     .chart-legend {
         justify-content: center;
+        flex-wrap: wrap;
     }
     
     .stats-grid {
         grid-template-columns: 1fr;
+        gap: 0.75rem;
     }
     
     .chart-bars {
         height: 150px;
+    }
+    
+    /* Domino grid horizontal scroll on mobile */
+    .domino-grid {
+        padding: 8px 15px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .domino-box {
+        min-width: 3px;
+        max-width: 3px;
+        height: 20px;
+    }
+    
+    /* Form adjustments */
+    form {
+        padding: 2rem 1.5rem;
+        max-width: 100%;
+        margin: 0 1rem;
+    }
+    
+    .form-input {
+        max-width: 100%;
+    }
+    
+    /* User menu adjustments */
+    .user-menu-popup {
+        width: 200px;
+        left: auto;
+        right: 0;
+        transform: none;
+    }
+    
+    /* Map adjustments */
+    .inline-map {
+        height: 300px;
+        min-height: 300px;
+    }
+    
+    .map-legend {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 0.75rem;
+    }
+    
+    /* Pulse statistics wrap on mobile */
+    .pulse-statistics {
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 8px;
+    }
+    
+    .pulse-statistics .stat-item {
+        min-width: 70px;
+        padding: 6px 8px;
+    }
+    
+    .pulse-statistics .stat-value {
+        font-size: 0.85em;
+    }
+    
+    .pulse-statistics .stat-label {
+        font-size: 0.7em;
+    }
+}
+
+/* Small Mobile Breakpoint (max-width: 480px) */
+@media (max-width: 480px) {
+    .navigation {
+        padding: 0.5rem;
+    }
+    
+    .nav-brand h1 {
+        font-size: 1.1rem;
+    }
+    
+    .nav-logo {
+        height: 35px;
+    }
+    
+    .sidebar {
+        width: 280px;
+        left: -300px;
+    }
+    
+    .main-content {
+        padding: 10px;
+    }
+    
+    .sidebar-header h1 {
+        font-size: 1.5em;
+    }
+    
+    .sidebar-header .nav-logo {
+        width: 100px;
+    }
+    
+    /* Smaller touch targets adjusted */
+    .topic-item, .device-item {
+        padding: 12px;
+    }
+    
+    .user-menu-popup {
+        width: 180px;
+    }
+    
+    /* Form full width on small screens */
+    form {
+        margin: 0 0.5rem;
+        padding: 1.5rem 1rem;
+    }
+    
+    /* Data type labels wrap */
+    .data-type-labels {
+        flex-wrap: wrap;
+        gap: 2px;
+    }
+    
+    .data-type-label {
+        font-size: 0.65em;
+        padding: 1px 4px;
+    }
+    
+    /* Pulse chart container padding */
+    .pulse-chart-container {
+        padding: 1rem;
+    }
+    
+    .pulse-viz-content {
+        gap: 1rem;
+    }
+    
+    /* Settings page mobile */
+    .settings-container {
+        flex-direction: column;
+    }
+    
+    .settings-content {
+        padding: 1rem;
+    }
+    
+    .settings-section {
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Domino boxes even smaller on tiny screens */
+    .domino-box {
+        min-width: 2px;
+        max-width: 2px;
+        height: 18px;
+    }
+    
+    .domino-grid {
+        padding: 6px 10px;
+    }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+    /* Larger touch targets */
+    .topic-item, .device-item {
+        min-height: 48px;
+    }
+    
+    .nav-button, .time-range-btn, .user-menu-popup-item {
+        min-height: 44px;
+        padding: 12px 16px;
+    }
+    
+    .pill-switch {
+        width: 48px;
+        height: 26px;
+    }
+    
+    .pill-switch-handle {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .pill-switch.active .pill-switch-handle {
+        left: 26px;
+    }
+    
+    /* Remove hover effects on touch devices */
+    .topic-item:hover, .device-item:hover {
+        background-color: inherit;
+        border-color: inherit;
+    }
+    
+    /* Make status indicators larger on touch */
+    .device-status, .topic-status {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .device-status::before, .topic-status::before {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .device-status::after, .topic-status::after {
+        width: 9px;
+        height: 9px;
     }
 }
 

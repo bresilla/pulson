@@ -42,6 +42,7 @@ pub fn dashboard() -> Html {
     let navigator = use_navigator().unwrap();
     let user_menu_visible = use_state(|| false);
     let user_data = use_state(|| None::<UserData>);
+    let mobile_menu_visible = use_state(|| false);
     
     let main_content_ref = use_node_ref();
 
@@ -204,8 +205,11 @@ pub fn dashboard() -> Html {
 
     let on_device_select = {
         let selected_device = selected_device.clone();
+        let mobile_menu_visible = mobile_menu_visible.clone();
         Callback::from(move |device_id: String| {
             selected_device.set(Some(device_id));
+            // Close mobile menu when device is selected
+            mobile_menu_visible.set(false);
         })
     };
 
@@ -231,6 +235,20 @@ pub fn dashboard() -> Html {
         })
     };
 
+    let toggle_mobile_menu = {
+        let mobile_menu_visible = mobile_menu_visible.clone();
+        Callback::from(move |_| {
+            mobile_menu_visible.set(!*mobile_menu_visible);
+        })
+    };
+
+    let close_mobile_menu = {
+        let mobile_menu_visible = mobile_menu_visible.clone();
+        Callback::from(move |_| {
+            mobile_menu_visible.set(false);
+        })
+    };
+
     let go_to_settings = {
         let navigator = navigator.clone();
         Callback::from(move |_| {
@@ -252,7 +270,12 @@ pub fn dashboard() -> Html {
 
     html! {
         <div class="dashboard-container">
-            <aside class="sidebar">
+            // Mobile overlay
+            if *mobile_menu_visible {
+                <div class="mobile-overlay visible" onclick={close_mobile_menu.clone()}></div>
+            }
+            
+            <aside class={classes!("sidebar", (*mobile_menu_visible).then(|| "mobile-open"))}>
                 <div class="sidebar-header">
                     <img src="/static/logo.svg" alt="Pulson Logo" class="nav-logo" />
                     <h1>{"pulson"}</h1>
@@ -368,7 +391,20 @@ pub fn dashboard() -> Html {
                 </div>
             </aside>
 
-            <main class="main-content" ref={main_content_ref}>                
+            <main class="main-content" ref={main_content_ref}>
+                // Mobile header with logo and burger menu
+                <div class="mobile-header">
+                    <button class="mobile-menu-toggle" onclick={toggle_mobile_menu.clone()}>
+                        <div class="hamburger-icon">
+                            <div class="hamburger-line"></div>
+                            <div class="hamburger-line"></div>
+                            <div class="hamburger-line"></div>
+                        </div>
+                    </button>
+                    <img src="/static/logo.svg" alt="Pulson Logo" class="nav-logo" />
+                    <h1 class="brand-text">{"pulson"}</h1>
+                </div>
+                                
                 <section class="topics-panel">
                     <h2>
                         if selected_device.is_some() {
