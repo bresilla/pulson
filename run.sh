@@ -37,7 +37,9 @@ release() {
     echo "New version: $version"
     sed -i "s/^version = \".*\"/version = \"$version\"/" pulson/Cargo.toml
     sed -i "s/^version = \".*\"/version = \"$version\"/" pulson-ui/Cargo.toml
-    git cliff --tag $version > CHANGELOG.md
+    # Generate changelog for the new release and prepend it to existing changelog
+    git cliff --tag $version --unreleased --prepend CHANGELOG.md
+    # Get changelog content for release notes (just the unreleased changes)
     changelog=$(git cliff --unreleased --strip all)
     git add -A && git commit -m "chore(release): prepare for $version"
     echo "$changelog"
