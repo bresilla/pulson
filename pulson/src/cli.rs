@@ -78,6 +78,9 @@ pub enum Commands {
         /// Stale threshold in seconds (overrides config file)
         #[arg(long)]
         stale_threshold: Option<u64>,
+        /// Enable saving images to database (disabled by default to save storage space)
+        #[arg(long)]
+        save_images: bool,
     },
 
     /// Device management (list, delete)
@@ -127,6 +130,12 @@ pub enum Commands {
         /// Path to image file for image data type
         #[arg(long)]
         image_file: Option<String>,
+        /// Raw image data as comma-separated bytes (e.g., "255,128,64,...")
+        #[arg(long)]
+        image_data: Option<String>,
+        /// Number of channels for image data (default: 3 for RGB)
+        #[arg(long)]
+        channels: Option<u32>,
     },
 
     /// User account management (register, login, logout, delete, list)

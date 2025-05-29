@@ -29,6 +29,7 @@ struct ConfigUpdateRequest {
 
 pub fn pulse(
     db: Database,
+    save_images: bool,
 ) -> impl Filter<Extract = impl warp::Reply, Error = Rejection> + Clone {
     let auth = authenticated_user(db.clone());
     warp::post()
@@ -43,7 +44,7 @@ pub fn pulse(
             match &payload.data {
                 Some(data_value) => {
                     // Store data using new type system - it will automatically detect the type
-                    match store_device_data_payload(&db, &device_id, Some(&payload.device_id), &payload.topic, "", data_value, &ts) {
+                    match store_device_data_payload(&db, &device_id, Some(&payload.device_id), &payload.topic, "", data_value, &ts, save_images) {
                         Ok(_) => {
                             println!("Data pulse from device {} (user: {}) - topic: {}", 
                                 payload.device_id, username, payload.topic);
@@ -65,7 +66,7 @@ pub fn pulse(
                     // Handle simple ping - store as null data
                     let ping_data = serde_json::json!(null);
                     
-                    match store_device_data_payload(&db, &device_id, Some(&payload.device_id), &payload.topic, "", &ping_data, &ts) {
+                    match store_device_data_payload(&db, &device_id, Some(&payload.device_id), &payload.topic, "", &ping_data, &ts, save_images) {
                         Ok(_) => {
                             println!("Ping pulse from device {} (user: {})", payload.device_id, username);
                             with_status(

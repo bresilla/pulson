@@ -29,6 +29,8 @@ pub async fn run(
     width: Option<u32>,
     height: Option<u32>,
     image_file: Option<String>,
+    image_data: Option<String>,
+    channels: Option<u32>,
     token: String,
 ) -> anyhow::Result<()> {
     let client = Client::new();
@@ -110,22 +112,54 @@ pub async fn run(
                             "data": image_data
                         }
                     }))
+                } else if let Some(ref raw_data) = image_data {
+                    // Parse raw image data from comma-separated bytes
+                    let bytes: Result<Vec<u8>, _> = raw_data
+                        .split(',')
+                        .map(|s| s.trim().parse::<u8>())
+                        .collect();
+                    
+                    let image_bytes = bytes
+                        .map_err(|e| anyhow::anyhow!("Invalid image data format: {}", e))?;
+                    
+                    let img_width = width.ok_or_else(|| anyhow::anyhow!("--width required when using --image-data"))?;
+                    let img_height = height.ok_or_else(|| anyhow::anyhow!("--height required when using --image-data"))?;
+                    let img_channels = channels.unwrap_or(3);
+                    
+                    let expected_size = (img_width * img_height * img_channels) as usize;
+                    if image_bytes.len() != expected_size {
+                        return Err(anyhow::anyhow!(
+                            "Image data size mismatch: expected {} bytes ({}x{}x{}), got {}",
+                            expected_size, img_width, img_height, img_channels, image_bytes.len()
+                        ));
+                    }
+                    
+                    println!("📷 Raw image: {}x{}x{} ({} bytes)", img_width, img_height, img_channels, image_bytes.len());
+                    
+                    Some(json!({
+                        "image": {
+                            "rows": img_height,
+                            "cols": img_width,
+                            "channels": img_channels,
+                            "data": image_bytes
+                        }
+                    }))
                 } else if let (Some(img_width), Some(img_height)) = (width, height) {
                     // Generate dummy image data for demonstration
-                    let channels = 3; // RGB
-                    let data_size = (img_width * img_height * channels) as usize;
+                    let img_channels = channels.unwrap_or(3);
+                    let data_size = (img_width * img_height * img_channels) as usize;
                     let dummy_data: Vec<u8> = (0..data_size).map(|i| (i % 256) as u8).collect();
                     
                     Some(json!({
                         "image": {
                             "rows": img_height,
                             "cols": img_width,
-                            "channels": channels,
+                            "channels": img_channels,
                             "data": dummy_data
                         }
                     }))
                 } else {
-                    return Err(anyhow::anyhow!("Image data type requires either --image-file or both --width and --height parameters"));
+                    return Err(anyhow::anyhow!("Image data type requires either --image-file, --image-data with --width/--height, or both --width and --height parameters"));
                 }
             },
         }
@@ -152,7 +186,15 @@ pub async fn run(
                 DataType::Sensor => println!("✓ Sensor data sent to {} (value: {})", url, value.unwrap()),
                 DataType::Trigger => println!("✓ Trigger data sent to {} (state: {})", url, state.unwrap()),
                 DataType::Event => println!("✓ Event data sent to {} (message: '{}')", url, message.as_ref().unwrap()),
-                DataType::Image => println!("✓ Image data sent to {} ({}x{} pixels)", url, width.unwrap(), height.unwrap()),
+                DataType::Image => {
+                    if let Some(file_path) = &image_file {
+                        println!("✓ Image file sent to {} ({})", url, file_path);
+                    } else if let (Some(w), Some(h)) = (width, height) {
+                        println!("✓ Image data sent to {} ({}x{} pixels)", url, w, h);
+                    } else {
+                        println!("✓ Image data sent to {}", url);
+                    }
+                },
             }
         }
     } else {

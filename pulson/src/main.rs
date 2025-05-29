@@ -43,6 +43,7 @@ async fn main() -> anyhow::Result<()> {
             online_threshold,
             warning_threshold,
             stale_threshold,
+            save_images,
         } => {
             // Create configuration from CLI arguments and environment variables only
             let status_config = StatusConfig::from_args_and_env(online_threshold, warning_threshold, stale_threshold);
@@ -51,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
             let status_config = Arc::new(Mutex::new(status_config));
 
             // Run the HTTP server - use host_config for server
-            logic::serve::run(host_config, db_path, daemon, root_pass, webui, status_config).await?
+            logic::serve::run(host_config, db_path, daemon, root_pass, webui, status_config, save_images).await?
         }
 
         Commands::Device { action } => match action {
@@ -110,6 +111,8 @@ async fn main() -> anyhow::Result<()> {
             width,
             height,
             image_file,
+            image_data,
+            channels,
         } => {
             // Client: send a unified pulse (ping or data)
             pulse::run(
@@ -129,6 +132,8 @@ async fn main() -> anyhow::Result<()> {
                 width,
                 height,
                 image_file,
+                image_data,
+                channels,
                 token.unwrap()
             ).await?
         }

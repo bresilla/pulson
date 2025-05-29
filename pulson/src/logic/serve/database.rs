@@ -566,7 +566,8 @@ pub fn store_device_data(
     device_name: Option<&str>, 
     topic: &str,
     raw_data: &serde_json::Value,
-    timestamp: &str
+    timestamp: &str,
+    save_images: bool,
 ) -> Result<(), StatusCode> {
     let conn = db.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
@@ -603,6 +604,21 @@ pub fn store_device_data(
         [device_id, topic, timestamp],
     ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
+    // Check if this is image data and handle according to save_images flag
+    let final_data_type = match &data_type {
+        DataType::Image { .. } if !save_images => {
+            // When save_images is false, store only the latest image (replace previous ones)
+            // First, delete any existing image data for this device/topic
+            conn.execute(
+                "DELETE FROM device_data WHERE device_id = ?1 AND topic = ?2 AND data_type = 'image'",
+                [device_id, topic],
+            ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            
+            data_type // Keep the image data, but we'll store only the latest one
+        },
+        _ => data_type, // Keep all other data types as-is
+    };
+    
     // Store the structured data
     conn.execute(
         "INSERT INTO device_data (device_id, topic, data_type, data_payload, timestamp) 
@@ -610,8 +626,8 @@ pub fn store_device_data(
         [
             device_id, 
             topic, 
-            data_type.type_name(),
-            &data_type.to_json().to_string(), 
+            final_data_type.type_name(),
+            &final_data_type.to_json().to_string(), 
             timestamp
         ],
     ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -627,9 +643,10 @@ pub fn store_device_data_payload(
     topic: &str,
     _data_type: &str, // Ignored - we detect the type from the data
     data_payload: &serde_json::Value,
-    timestamp: &str
+    timestamp: &str,
+    save_images: bool,
 ) -> Result<(), StatusCode> {
-    store_device_data(db, device_id, name, topic, data_payload, timestamp)
+    store_device_data(db, device_id, name, topic, data_payload, timestamp, save_images)
 }
 
 /// Get latest data for a device and topic

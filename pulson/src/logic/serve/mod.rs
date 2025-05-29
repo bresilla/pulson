@@ -22,6 +22,7 @@ pub async fn run(
     root_pass: Option<String>,
     _webui: bool,
     status_config: Arc<Mutex<StatusConfig>>,
+    save_images: bool,
 ) -> anyhow::Result<()> {
     // 1) Daemonize if requested
     if daemon {
@@ -42,7 +43,7 @@ pub async fn run(
     let db = init_database(&db_file)?;
 
     // 3) Build API routes with status configuration
-    let api = api_routes(db.clone(), root_pass.clone(), status_config.clone())
+    let api = api_routes(db.clone(), root_pass.clone(), status_config.clone(), save_images)
         .recover(|err: Rejection| async move {
             if err.find::<Unauthorized>().is_some() {
                 Ok(warp::reply::with_status(

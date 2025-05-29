@@ -16,6 +16,7 @@ pub fn api_routes(
     db: Database,
     root_pass: Option<String>,
     status_config: Arc<Mutex<StatusConfig>>,
+    save_images: bool,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     let reg = register(db.clone(), root_pass.clone());
     let log = login(db.clone());
@@ -24,7 +25,7 @@ pub fn api_routes(
     let list = list_users(db.clone());
     let userinfo_route = user_info(db.clone()); // Add userinfo route
 
-    let p = device_routes::pulse(db.clone());
+    let p = device_routes::pulse(db.clone(), save_images);
     let la = device_routes::list_all(db.clone());
     let lo = device_routes::list_one(db.clone());
     let dd = device_routes::delete_device(db.clone()); // Add delete_device route
