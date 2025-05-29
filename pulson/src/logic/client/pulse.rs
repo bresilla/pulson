@@ -24,6 +24,8 @@ pub async fn run(
     longitude: Option<f64>,
     altitude: Option<f64>,
     value: Option<f64>,
+    min: Option<f64>,
+    max: Option<f64>,
     state: Option<bool>,
     message: Option<String>,
     width: Option<u32>,
@@ -63,8 +65,13 @@ pub async fn run(
             },
             DataType::Sensor => {
                 if let Some(sensor_value) = value {
+                    let sensor_min = min.unwrap_or(1.0);
+                    let sensor_max = max.unwrap_or(100.0);
+                    
                     Some(json!({
-                        "sensor": sensor_value
+                        "value": sensor_value,
+                        "min": sensor_min,
+                        "max": sensor_max
                     }))
                 } else {
                     return Err(anyhow::anyhow!("Sensor data type requires --value parameter"));
@@ -183,7 +190,11 @@ pub async fn run(
             match data_type {
                 DataType::Pulse => println!("✓ Pulse sent to {}", url),
                 DataType::Gps => println!("✓ GPS data sent to {} (lat: {:.6}, lon: {:.6})", url, latitude.unwrap(), longitude.unwrap()),
-                DataType::Sensor => println!("✓ Sensor data sent to {} (value: {})", url, value.unwrap()),
+                DataType::Sensor => {
+                    let sensor_min = min.unwrap_or(1.0);
+                    let sensor_max = max.unwrap_or(100.0);
+                    println!("✓ Sensor data sent to {} (value: {}, min: {}, max: {})", url, value.unwrap(), sensor_min, sensor_max);
+                },
                 DataType::Trigger => println!("✓ Trigger data sent to {} (state: {})", url, state.unwrap()),
                 DataType::Event => println!("✓ Event data sent to {} (message: '{}')", url, message.as_ref().unwrap()),
                 DataType::Image => {

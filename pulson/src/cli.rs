@@ -115,6 +115,12 @@ pub enum Commands {
         /// Sensor value for sensor data type
         #[arg(long)]
         value: Option<f64>,
+        /// Minimum value for sensor data type (default: 1)
+        #[arg(long)]
+        min: Option<f64>,
+        /// Maximum value for sensor data type (default: 100)
+        #[arg(long)]
+        max: Option<f64>,
         /// State for trigger data type (true/false)
         #[arg(long)]
         state: Option<bool>,

@@ -8,8 +8,8 @@ pub enum DataType {
     Pulse,
     /// GPS coordinates with latitude, longitude, and optional altitude
     GPS { lat: f64, lon: f64, alt: Option<f64> },
-    /// Sensor reading with a numeric value
-    Sensor { value: f64 },
+    /// Sensor reading with a numeric value and optional min/max range
+    Sensor { value: f64, min: Option<f64>, max: Option<f64> },
     /// Digital trigger or switch state
     Trigger { state: bool },
     /// Text-based event or message
@@ -45,7 +45,7 @@ impl DataType {
             // Handle numbers as Sensor readings
             serde_json::Value::Number(n) => {
                 if let Some(val) = n.as_f64() {
-                    Some(DataType::Sensor { value: val })
+                    Some(DataType::Sensor { value: val, min: Some(1.0), max: Some(100.0) })
                 } else {
                     None
                 }
@@ -104,7 +104,14 @@ impl DataType {
                     }
                 }
                 
-                // Check for sensor object patterns
+                // Check for nested sensor object pattern like {"sensor": {"value": ..., "min": ..., "max": ...}}
+                if let Some(sensor_obj) = obj.get("sensor").and_then(|v| v.as_object()) {
+                    if let Some(sensor) = Self::parse_sensor_object(sensor_obj) {
+                        return Some(sensor);
+                    }
+                }
+                
+                // Check for sensor object patterns directly in the object
                 if let Some(sensor) = Self::parse_sensor_object(obj) {
                     return Some(sensor);
                 }
@@ -175,7 +182,15 @@ impl DataType {
             .or_else(|| obj.get("sensor"))
             .and_then(|v| v.as_f64())?;
             
-        Some(DataType::Sensor { value })
+        let min = obj.get("min")
+            .or_else(|| obj.get("minimum"))
+            .and_then(|v| v.as_f64());
+            
+        let max = obj.get("max")
+            .or_else(|| obj.get("maximum"))
+            .and_then(|v| v.as_f64());
+            
+        Some(DataType::Sensor { value, min, max })
     }
 
     /// Parse trigger data from object
@@ -276,12 +291,17 @@ mod tests {
     fn test_sensor_detection() {
         assert_eq!(
             DataType::from_json(&json!(23.5), "temperature"),
-            Some(DataType::Sensor { value: 23.5 })
+            Some(DataType::Sensor { value: 23.5, min: Some(1.0), max: Some(100.0) })
         );
         
         assert_eq!(
             DataType::from_json(&json!({"value": 75.2}), "humidity"),
-            Some(DataType::Sensor { value: 75.2 })
+            Some(DataType::Sensor { value: 75.2, min: None, max: None })
+        );
+        
+        assert_eq!(
+            DataType::from_json(&json!({"value": 50.0, "min": 10.0, "max": 90.0}), "pressure"),
+            Some(DataType::Sensor { value: 50.0, min: Some(10.0), max: Some(90.0) })
         );
     }
 
@@ -310,7 +330,7 @@ mod tests {
     fn test_type_names() {
         assert_eq!(DataType::Pulse.type_name(), "pulse");
         assert_eq!(DataType::GPS { lat: 0.0, lon: 0.0, alt: None }.type_name(), "gps");
-        assert_eq!(DataType::Sensor { value: 0.0 }.type_name(), "sensor");
+        assert_eq!(DataType::Sensor { value: 0.0, min: None, max: None }.type_name(), "sensor");
         assert_eq!(DataType::Trigger { state: true }.type_name(), "trigger");
         assert_eq!(DataType::Event { message: "test".to_string() }.type_name(), "event");
         assert_eq!(DataType::Image { rows: 10, cols: 10, channels: 3, data: vec![] }.type_name(), "image");
