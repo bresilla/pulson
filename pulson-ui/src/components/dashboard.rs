@@ -9,6 +9,9 @@ use yew_router::prelude::*;
 use super::pulse_visualization::PulseVisualization;
 use super::inline_map::InlineMap;
 use super::image_visualization::ImageVisualization;
+use super::sensor_visualization::SensorVisualization;
+use super::event_visualization::EventVisualization;
+use super::trigger_visualization::TriggerVisualization;
 
 #[derive(Clone, PartialEq, Deserialize)]
 pub struct DeviceInfo {
@@ -472,20 +475,20 @@ pub fn dashboard() -> Html {
                                                             topic={topic_name.clone()}
                                                         />
                                                     } else if topic.data_type == "sensor" {
-                                                        <div class="sensor-visualization">
-                                                            <h4>{"Sensor Data: "}{&topic.topic}</h4>
-                                                            <p>{"Latest sensor reading visualization will be implemented here"}</p>
-                                                        </div>
+                                                        <SensorVisualization
+                                                            device_id={device_id_for_pulse}
+                                                            topic={topic_name.clone()}
+                                                        />
                                                     } else if topic.data_type == "trigger" {
-                                                        <div class="trigger-visualization">
-                                                            <h4>{"Trigger State: "}{&topic.topic}</h4>
-                                                            <p>{"Digital trigger state visualization will be implemented here"}</p>
-                                                        </div>
+                                                        <TriggerVisualization
+                                                            device_id={device_id_for_pulse}
+                                                            topic={topic_name.clone()}
+                                                        />
                                                     } else if topic.data_type == "event" {
-                                                        <div class="event-visualization">
-                                                            <h4>{"Event Log: "}{&topic.topic}</h4>
-                                                            <p>{"Event message history will be implemented here"}</p>
-                                                        </div>
+                                                        <EventVisualization
+                                                            device_id={device_id_for_pulse}
+                                                            topic={topic_name.clone()}
+                                                        />
                                                     } else if topic.data_type == "image" {
                                                         <ImageVisualization
                                                             device_id={device_id_for_pulse}

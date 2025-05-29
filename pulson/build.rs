@@ -12,6 +12,9 @@ fn main() {
     println!("cargo:rerun-if-changed=../pulson-ui/static/styles/settings.css");
     println!("cargo:rerun-if-changed=../pulson-ui/static/styles/pulse_visualization.css");
     println!("cargo:rerun-if-changed=../pulson-ui/static/styles/image_visualization.css");
+    println!("cargo:rerun-if-changed=../pulson-ui/static/styles/sensor_visualization.css");
+    println!("cargo:rerun-if-changed=../pulson-ui/static/styles/event_visualization.css");
+    println!("cargo:rerun-if-changed=../pulson-ui/static/styles/trigger_visualization.css");
     println!("cargo:rerun-if-changed=../pulson-ui/static/styles/inline_map.css");
     println!("cargo:rerun-if-changed=../pulson-ui/static/styles/mobile.css");
     println!("cargo:rerun-if-changed=../pulson-ui/static/styles/pwa.css");
@@ -66,6 +69,10 @@ fn main() {
         "dashboard.css",
         "settings.css",
         "pulse_visualization.css",
+        "image_visualization.css",
+        "sensor_visualization.css",
+        "event_visualization.css",
+        "trigger_visualization.css",
         "inline_map.css",
         "mobile.css",
         "pwa.css"
