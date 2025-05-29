@@ -3,6 +3,7 @@ use serde::Serialize;
 use crate::cli::DataType;
 use crate::logic::client::url_utils::build_api_url;
 use serde_json::json;
+use image::io::Reader as ImageReader;
 
 #[derive(Serialize)]
 struct PulsePayload {
@@ -27,6 +28,7 @@ pub async fn run(
     message: Option<String>,
     width: Option<u32>,
     height: Option<u32>,
+    image_file: Option<String>,
     token: String,
 ) -> anyhow::Result<()> {
     let client = Client::new();
@@ -85,7 +87,30 @@ pub async fn run(
                 }
             },
             DataType::Image => {
-                if let (Some(img_width), Some(img_height)) = (width, height) {
+                if let Some(ref file_path) = image_file {
+                    // Read and decode image file to RGB pixels
+                    let img = ImageReader::open(file_path)
+                        .map_err(|e| anyhow::anyhow!("Failed to open image file '{}': {}", file_path, e))?
+                        .decode()
+                        .map_err(|e| anyhow::anyhow!("Failed to decode image file '{}': {}", file_path, e))?;
+                    
+                    // Convert to RGB format
+                    let rgb_img = img.to_rgb8();
+                    let (img_width, img_height) = rgb_img.dimensions();
+                    let image_data = rgb_img.into_raw();
+                    let channels = 3; // RGB
+                    
+                    println!("📷 Loaded image: {}x{} RGB ({} bytes)", img_width, img_height, image_data.len());
+                    
+                    Some(json!({
+                        "image": {
+                            "rows": img_height,
+                            "cols": img_width,
+                            "channels": channels,
+                            "data": image_data
+                        }
+                    }))
+                } else if let (Some(img_width), Some(img_height)) = (width, height) {
                     // Generate dummy image data for demonstration
                     let channels = 3; // RGB
                     let data_size = (img_width * img_height * channels) as usize;
@@ -100,7 +125,7 @@ pub async fn run(
                         }
                     }))
                 } else {
-                    return Err(anyhow::anyhow!("Image data type requires --width and --height parameters"));
+                    return Err(anyhow::anyhow!("Image data type requires either --image-file or both --width and --height parameters"));
                 }
             },
         }

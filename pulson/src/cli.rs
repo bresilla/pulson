@@ -124,6 +124,9 @@ pub enum Commands {
         /// Image height for image data type
         #[arg(long)]
         height: Option<u32>,
+        /// Path to image file for image data type
+        #[arg(long)]
+        image_file: Option<String>,
     },
 
     /// User account management (register, login, logout, delete, list)

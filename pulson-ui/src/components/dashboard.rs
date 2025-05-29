@@ -8,6 +8,7 @@ use yew::prelude::*;
 use yew_router::prelude::*;
 use super::pulse_visualization::PulseVisualization;
 use super::inline_map::InlineMap;
+use super::image_visualization::ImageVisualization;
 
 #[derive(Clone, PartialEq, Deserialize)]
 pub struct DeviceInfo {
@@ -486,10 +487,10 @@ pub fn dashboard() -> Html {
                                                             <p>{"Event message history will be implemented here"}</p>
                                                         </div>
                                                     } else if topic.data_type == "image" {
-                                                        <div class="image-visualization">
-                                                            <h4>{"Image Data: "}{&topic.topic}</h4>
-                                                            <p>{"Image display will be implemented here"}</p>
-                                                        </div>
+                                                        <ImageVisualization
+                                                            device_id={device_id_for_pulse}
+                                                            topic={topic_name.clone()}
+                                                        />
                                                     } else {
                                                         <div class="unimplemented-message">
                                                             <h4>{"Data Type: "}{&topic.data_type.to_uppercase()}</h4>

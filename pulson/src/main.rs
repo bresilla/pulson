@@ -109,6 +109,7 @@ async fn main() -> anyhow::Result<()> {
             message,
             width,
             height,
+            image_file,
         } => {
             // Client: send a unified pulse (ping or data)
             pulse::run(
@@ -127,6 +128,7 @@ async fn main() -> anyhow::Result<()> {
                 message,
                 width,
                 height,
+                image_file,
                 token.unwrap()
             ).await?
         }

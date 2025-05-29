@@ -11,6 +11,7 @@ fn main() {
     println!("cargo:rerun-if-changed=../pulson-ui/static/styles/dashboard.css");
     println!("cargo:rerun-if-changed=../pulson-ui/static/styles/settings.css");
     println!("cargo:rerun-if-changed=../pulson-ui/static/styles/pulse_visualization.css");
+    println!("cargo:rerun-if-changed=../pulson-ui/static/styles/image_visualization.css");
     println!("cargo:rerun-if-changed=../pulson-ui/static/styles/inline_map.css");
     println!("cargo:rerun-if-changed=../pulson-ui/static/styles/mobile.css");
     println!("cargo:rerun-if-changed=../pulson-ui/static/styles/pwa.css");
