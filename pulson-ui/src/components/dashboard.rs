@@ -621,11 +621,20 @@ fn format_relative_time(timestamp: &str) -> String {
 }
 
 fn format_exact_time(timestamp: &str) -> String {
-    if let Ok(ts) = parse_timestamp(timestamp) {
+    // Try to parse as ISO 8601 format first
+    if let Ok(parsed_time) = chrono::DateTime::parse_from_rfc3339(timestamp) {
+        // Format as European: DD/MM/YYYY HH:MM:SS
+        parsed_time.format("%d/%m/%Y %H:%M:%S").to_string()
+    } else if let Ok(ts) = parse_timestamp(timestamp) {
+        // Fallback to JS Date parsing and manual formatting
         let date = Date::new(&ts.into());
-        date.to_iso_string()
-            .as_string()
-            .unwrap_or_else(|| timestamp.to_string())
+        let day = date.get_utc_date();
+        let month = date.get_utc_month() + 1; // JS months are 0-based
+        let year = date.get_utc_full_year();
+        let hours = date.get_utc_hours();
+        let minutes = date.get_utc_minutes();
+        let seconds = date.get_utc_seconds();
+        format!("{:02}/{:02}/{} {:02}:{:02}:{:02}", day, month, year, hours, minutes, seconds)
     } else {
         timestamp.to_string()
     }

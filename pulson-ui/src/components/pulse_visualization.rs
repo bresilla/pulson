@@ -403,7 +403,7 @@ fn calculate_interval_times(time_range: &str, index: usize, total_boxes: usize, 
             let end_time = *now - Duration::hours((hours_back - 12) as i64);
             let start_time = end_time - Duration::hours(12);
             let period = if start_time.hour() < 12 { "AM" } else { "PM" };
-            let label = format!("{} {}", start_time.format("%m/%d"), period);
+            let label = format!("{} {}", start_time.format("%d/%m"), period);
             (start_time, end_time, label)
         },
         "1y" => {

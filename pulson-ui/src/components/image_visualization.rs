@@ -275,9 +275,9 @@ fn render_image_to_canvas(canvas: &HtmlCanvasElement, image_entry: &Value) {
 
 fn format_image_timestamp(image_entry: &Value) -> String {
     if let Some(timestamp) = image_entry.get("timestamp").and_then(|t| t.as_str()) {
-        // Parse timestamp and format it nicely
+        // Parse timestamp and format it nicely in European format
         if let Ok(datetime) = chrono::DateTime::parse_from_rfc3339(timestamp) {
-            datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+            datetime.format("%d/%m/%Y %H:%M:%S").to_string()
         } else {
             timestamp.to_string()
         }

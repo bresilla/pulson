@@ -334,6 +334,28 @@
     flex-grow: 1;
 }
 
+/* Topic Info Row - for timing information */
+.topic-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.topic-info .last-seen {
+    color: #b0b0b0;
+    font-size: 0.75em;
+    flex-grow: 1;
+}
+
+.topic-info .exact-time {
+    color: #888;
+    font-size: 0.7em;
+    margin-left: 8px;
+    text-align: right;
+    min-width: fit-content;
+}
+
 /* Data Type Labels */
 .data-type-labels {
     display: flex;

@@ -154,7 +154,7 @@ fn display_devices_table(devices: &[DeviceInfo], extended: bool, _config: &Statu
         println!("{:<3} {:<25} {:<25} {:<10}",
                  status_indicator,
                  device_id,
-                 device.last_seen.format("%Y-%m-%d %H:%M:%S"),
+                 device.last_seen.format("%d/%m/%Y %H:%M:%S"),
                  format_age(age_secs));
     }
 
@@ -198,7 +198,7 @@ fn display_topics_table(topics: &[TopicInfo], device_id: &str, extended: bool, _
         println!("{:<3} {:<35} {:<25} {:<10}",
                  status_indicator,
                  topic_name,
-                 topic.last_seen.format("%Y-%m-%d %H:%M:%S"),
+                 topic.last_seen.format("%d/%m/%Y %H:%M:%S"),
                  format_age(age_secs));
     }
 
@@ -251,7 +251,7 @@ pub async fn run(
             print!("\x1B[2J\x1B[1;1H");
             
             // Print timestamp
-            println!("{} {}", "Last updated:".bright_cyan(), Utc::now().format("%Y-%m-%d %H:%M:%S UTC"));
+            println!("{} {}", "Last updated:".bright_cyan(), Utc::now().format("%d/%m/%Y %H:%M:%S UTC"));
             println!();
 
             if let Err(e) = run_single_fetch(&client, base_url.as_deref(), &host, port, &device_id, &token, &format, &sort, &status, extended, &config).await {
