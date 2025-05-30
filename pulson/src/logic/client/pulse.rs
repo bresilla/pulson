@@ -111,12 +111,16 @@ pub async fn run(
                     
                     println!("📷 Loaded image: {}x{} RGB ({} bytes)", img_width, img_height, image_data.len());
                     
+                    // Encode image data as base64 for memory-efficient transport
+                    use base64::{Engine as _, engine::general_purpose};
+                    let base64_data = general_purpose::STANDARD.encode(&image_data);
+                    
                     Some(json!({
                         "image": {
                             "rows": img_height,
                             "cols": img_width,
                             "channels": channels,
-                            "data": image_data
+                            "data": base64_data
                         }
                     }))
                 } else if let Some(ref raw_data) = image_data {
@@ -143,12 +147,16 @@ pub async fn run(
                     
                     println!("📷 Raw image: {}x{}x{} ({} bytes)", img_width, img_height, img_channels, image_bytes.len());
                     
+                    // Encode image data as base64 for memory-efficient transport
+                    use base64::{Engine as _, engine::general_purpose};
+                    let base64_data = general_purpose::STANDARD.encode(&image_bytes);
+                    
                     Some(json!({
                         "image": {
                             "rows": img_height,
                             "cols": img_width,
                             "channels": img_channels,
-                            "data": image_bytes
+                            "data": base64_data
                         }
                     }))
                 } else if let (Some(img_width), Some(img_height)) = (width, height) {
@@ -157,12 +165,16 @@ pub async fn run(
                     let data_size = (img_width * img_height * img_channels) as usize;
                     let dummy_data: Vec<u8> = (0..data_size).map(|i| (i % 256) as u8).collect();
                     
+                    // Encode image data as base64 for memory-efficient transport
+                    use base64::{Engine as _, engine::general_purpose};
+                    let base64_data = general_purpose::STANDARD.encode(&dummy_data);
+                    
                     Some(json!({
                         "image": {
                             "rows": img_height,
                             "cols": img_width,
                             "channels": img_channels,
-                            "data": dummy_data
+                            "data": base64_data
                         }
                     }))
                 } else {

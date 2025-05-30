@@ -14,7 +14,7 @@ pub enum DataType {
     Trigger { state: bool },
     /// Text-based event or message
     Event { message: String },
-    /// Image data with dimensions and pixel data
+    /// Image data with dimensions and base64-encoded pixel data for memory efficiency
     Image { 
         rows: u32, 
         cols: u32, 
@@ -218,11 +218,19 @@ impl DataType {
             .and_then(|v| v.as_u64())
             .unwrap_or(3) as u32; // Default to 3 channels (RGB)
             
-        let data = obj.get("data")
-            .and_then(|v| v.as_array())?
-            .iter()
-            .filter_map(|v| v.as_u64().map(|n| n as u8))
-            .collect::<Vec<u8>>();
+        // Try to parse data as base64 string first (memory efficient)
+        let data = if let Some(base64_str) = obj.get("data").and_then(|v| v.as_str()) {
+            // Decode base64 string
+            use base64::{Engine as _, engine::general_purpose};
+            general_purpose::STANDARD.decode(base64_str).ok()?
+        } else if let Some(array) = obj.get("data").and_then(|v| v.as_array()) {
+            // Fallback to JSON array parsing (less memory efficient)
+            array.iter()
+                .filter_map(|v| v.as_u64().map(|n| n as u8))
+                .collect::<Vec<u8>>()
+        } else {
+            return None;
+        };
 
         // Validate data size matches dimensions
         if data.len() == (rows * cols * channels) as usize {
