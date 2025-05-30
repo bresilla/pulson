@@ -29,29 +29,6 @@
     gap: 0.5rem;
 }
 
-.time-range-btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid #5a5a60;
-    border-radius: 4px;
-    background: #4a4a50;
-    color: #f0f0f0;
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.time-range-btn:hover {
-    background: #5a5a60;
-    border-color: var(--accent-color);
-}
-
-.time-range-btn.active {
-    background: var(--accent-color);
-    border-color: var(--accent-color);
-    color: #ffffff;
-}
-
 .pulse-viz-loading, .pulse-viz-error {
     text-align: center;
     padding: 2rem;
@@ -68,42 +45,6 @@
     display: flex;
     flex-direction: column;
     gap: 2rem;
-}
-
-/* Pulse Controls */
-.pulse-controls {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 20px;
-}
-
-.time-range-buttons {
-    display: flex;
-    gap: 8px;
-    background-color: #2a2a30;
-    padding: 4px;
-    border-radius: 6px;
-}
-
-.time-range-btn {
-    padding: 8px 16px;
-    background-color: transparent;
-    border: none;
-    color: #a0a0a0;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.time-range-btn:hover {
-    background-color: #3a3a40;
-    color: #e0e0e0;
-}
-
-.time-range-btn.active {
-    background-color: var(--accent-color);
-    color: white;
 }
 
 /* Domino Container */
@@ -162,7 +103,7 @@
 /* Domino Grid */
 .domino-grid {
     display: flex;
-    gap: 1px;
+    gap: 5px;
     margin-bottom: 15px;
     padding: 12px 20px;
     background-color: #0f0f15;
@@ -177,7 +118,7 @@
 }
 
 .domino-box {
-    width: 4px;
+    width: 10px;
     height: 24px;
     border-radius: 2px;
     cursor: pointer;
@@ -186,8 +127,8 @@
     flex-shrink: 0;
     background-color: #1a1a20;
     border: 0.5px solid #2a2a30;
-    min-width: 4px;
-    max-width: 4px;
+    min-width: 10px;
+    max-width: 10px;
 }
 
 .domino-box:hover {

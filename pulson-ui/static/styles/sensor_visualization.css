@@ -24,22 +24,7 @@
     font-weight: 600;
 }
 
-.refresh-btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid #5a5a60;
-    border-radius: 4px;
-    background: #4a4a50;
-    color: #f0f0f0;
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.refresh-btn:hover {
-    background: #5a5a60;
-    border-color: var(--accent-color);
-}
+/* Refresh button uses standardized .btn styles from base.css */
 
 .sensor-loading, .sensor-error, .sensor-empty {
     text-align: center;
@@ -61,7 +46,70 @@
     gap: 2rem;
 }
 
-/* Gauge Container */
+/* Progress Bar Container */
+.sensor-progress-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: rgba(60, 60, 70, 0.3);
+    border-radius: 6px;
+    border: 1px solid #3a3a40;
+}
+
+.sensor-header-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sensor-current-value {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.sensor-current-value .value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #f0f0f0;
+}
+
+.sensor-current-value .percentage {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #a0a0a0;
+}
+
+.sensor-range .range-value {
+    font-size: 0.875rem;
+    color: #a0a0a0;
+    font-weight: 500;
+}
+
+.sensor-progress-bar {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.progress-track {
+    width: 100%;
+    height: 8px;
+    background-color: #3a3a40;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.8s ease-in-out, background-color 0.3s ease;
+    filter: drop-shadow(0 0 6px currentColor);
+}
+
+/* Legacy Gauge Container (keeping for compatibility) */
 .sensor-gauge-container {
     display: flex;
     gap: 2rem;

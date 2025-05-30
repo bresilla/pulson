@@ -154,12 +154,12 @@ pub fn event_visualization(props: &EventVisualizationProps) -> Html {
                 <div class="event-controls">
                     <button 
                         onclick={toggle_timestamps} 
-                        class={classes!("control-btn", (*show_timestamps).then(|| "active"))}
+                        class={classes!("btn", "btn-small", (*show_timestamps).then(|| "btn-active"))}
                         title="Toggle timestamps"
                     >
                         {"🕒"}
                     </button>
-                    <button onclick={manual_refresh} class="refresh-btn">{"Refresh"}</button>
+                    <button onclick={manual_refresh} class="btn">{"Refresh"}</button>
                 </div>
             </div>
 
@@ -177,7 +177,7 @@ pub fn event_visualization(props: &EventVisualizationProps) -> Html {
                     // Category filters
                     <div class="category-filters">
                         <button
-                            class={classes!("category-btn", "all", (*selected_category).is_none().then(|| "active"))}
+                            class={classes!("btn", "btn-small", (*selected_category).is_none().then(|| "btn-active"))}
                             onclick={
                                 let on_category_filter = on_category_filter.clone();
                                 Callback::from(move |_| on_category_filter.emit(None))
@@ -199,7 +199,7 @@ pub fn event_visualization(props: &EventVisualizationProps) -> Html {
                             
                             html! {
                                 <button
-                                    class={classes!("category-btn", get_category_class(cat), is_selected.then(|| "active"))}
+                                    class={classes!("btn", "btn-small", get_category_class(cat), is_selected.then(|| "btn-active"))}
                                     onclick={
                                         let on_category_filter = on_category_filter.clone();
                                         Callback::from(move |_| on_category_filter.emit(Some(category_clone.clone())))

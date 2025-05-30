@@ -123,7 +123,7 @@ pub fn sensor_visualization(props: &SensorVisualizationProps) -> Html {
         <div class="sensor-visualization">
             <div class="sensor-viz-header">
                 <h3>{"Sensor Data: "}{&props.topic}</h3>
-                <button onclick={manual_refresh} class="refresh-btn">{"Refresh"}</button>
+                <button onclick={manual_refresh} class="btn">{"Refresh"}</button>
             </div>
 
             if *loading {
@@ -132,47 +132,29 @@ pub fn sensor_visualization(props: &SensorVisualizationProps) -> Html {
                 <div class="sensor-error">{error_msg}</div>
             } else if let Some(reading) = latest_reading {
                 <div class="sensor-content">
-                    // Main Gauge Display
-                    <div class="sensor-gauge-container">
-                        <div class="sensor-gauge">
-                            <svg viewBox="0 0 200 120" class="gauge-svg">
-                                // Background arc
-                                <path
-                                    d="M 20 100 A 80 80 0 0 1 180 100"
-                                    fill="none"
-                                    stroke="#3a3a40"
-                                    stroke-width="12"
-                                    stroke-linecap="round"
-                                />
-                                // Value arc
-                                <path
-                                    d="M 20 100 A 80 80 0 0 1 180 100"
-                                    fill="none"
-                                    stroke={get_gauge_color(reading.value, reading.min, reading.max)}
-                                    stroke-width="12"
-                                    stroke-linecap="round"
-                                    stroke-dasharray={get_gauge_dasharray(reading.value, reading.min, reading.max)}
-                                    class="gauge-arc"
-                                />
-                                // Center text
-                                <text x="100" y="85" text-anchor="middle" class="gauge-value">
-                                    {format!("{:.1}", reading.value)}
-                                </text>
-                                <text x="100" y="105" text-anchor="middle" class="gauge-unit">
-                                    {"sensor"}
-                                </text>
-                            </svg>
-                        </div>
-                        <div class="sensor-info">
+                    // Compact Progress Bar Display
+                    <div class="sensor-progress-container">
+                        <div class="sensor-header-info">
+                            <div class="sensor-current-value">
+                                <span class="value">{format!("{:.1}", reading.value)}</span>
+                                <span class="percentage">
+                                    {format!("({:.1}%)", calculate_percentage(reading.value, reading.min, reading.max))}
+                                </span>
+                            </div>
                             <div class="sensor-range">
-                                <span class="range-label">{"Range:"}</span>
                                 <span class="range-value">{format!("{:.1} - {:.1}", reading.min, reading.max)}</span>
                             </div>
-                            <div class="sensor-percentage">
-                                <span class="percentage-label">{"Percentage:"}</span>
-                                <span class="percentage-value">
-                                    {format!("{:.1}%", calculate_percentage(reading.value, reading.min, reading.max))}
-                                </span>
+                        </div>
+                        <div class="sensor-progress-bar">
+                            <div class="progress-track">
+                                <div 
+                                    class="progress-fill"
+                                    style={format!(
+                                        "width: {:.1}%; background-color: {}",
+                                        calculate_percentage(reading.value, reading.min, reading.max),
+                                        get_progress_color(reading.value, reading.min, reading.max)
+                                    )}
+                                ></div>
                             </div>
                         </div>
                     </div>
@@ -306,37 +288,28 @@ fn parse_sensor_readings(data: &[Value]) -> Vec<SensorReading> {
         .collect()
 }
 
-fn get_gauge_color(value: f64, min: f64, max: f64) -> &'static str {
-    let percentage = calculate_percentage(value, min, max);
-    
-    if percentage >= 80.0 {
-        "#e74c3c" // Red for high values
-    } else if percentage >= 60.0 {
-        "#f39c12" // Orange for medium-high values
-    } else if percentage >= 40.0 {
-        "#f1c40f" // Yellow for medium values
-    } else if percentage >= 20.0 {
-        "#2ecc71" // Green for good values
-    } else {
-        "#3498db" // Blue for low values
-    }
-}
-
-fn get_gauge_dasharray(value: f64, min: f64, max: f64) -> String {
-    let percentage = calculate_percentage(value, min, max);
-    let arc_length = 251.3; // Approximate arc length for 180 degrees
-    let fill_length = (percentage / 100.0) * arc_length;
-    let empty_length = arc_length - fill_length;
-    
-    format!("{:.1} {:.1}", fill_length, empty_length)
-}
-
 fn calculate_percentage(value: f64, min: f64, max: f64) -> f64 {
     if max == min {
         return 50.0; // Default to 50% if range is invalid
     }
     
     ((value - min) / (max - min) * 100.0).clamp(0.0, 100.0)
+}
+
+fn get_progress_color(value: f64, min: f64, max: f64) -> &'static str {
+    let percentage = calculate_percentage(value, min, max);
+    
+    if percentage >= 80.0 {
+        "#eb1c24"  // Red for high values
+    } else if percentage >= 60.0 {
+        "#ffa500"  // Orange for medium-high values
+    } else if percentage >= 40.0 {
+        "#ffff00"  // Yellow for medium values
+    } else if percentage >= 20.0 {
+        "#90ee90"  // Light green for low-medium values
+    } else {
+        "#32cd32"  // Green for low values
+    }
 }
 
 fn generate_trend_points(readings: &[SensorReading]) -> String {

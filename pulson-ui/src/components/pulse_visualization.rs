@@ -143,10 +143,10 @@ pub fn pulse_visualization(props: &PulseVisualizationProps) -> Html {
 
     html! {
         <div class="pulse-visualization">
-            <div class="pulse-controls">
+            <div class="pulse-viz-header">
                 <h3>{"Pulse Activity"}</h3>
-                <div class="time-range-buttons">
-                    {for ["1h", "1d", "1w", "1y"].iter().map(|&range| {
+                <div class="time-range-selector">
+                    {for ["1h", "1d", "1w", "1m"].iter().map(|&range| {
                         let range_str = range.to_string();
                         let is_selected = *selected_time_range == range_str;
                         let on_click = {
@@ -158,7 +158,7 @@ pub fn pulse_visualization(props: &PulseVisualizationProps) -> Html {
                         };
                         html! {
                             <button 
-                                class={classes!("time-range-btn", is_selected.then(|| "active"))}
+                                class={classes!("btn", "btn-small", is_selected.then(|| "btn-active"))}
                                 onclick={on_click}
                             >
                                 {range.to_uppercase()}
@@ -248,7 +248,7 @@ fn generate_domino_boxes(time_range: &str, pulse_history: &UseStateHandle<Option
         "1h" => 30,
         "1d" => 24,
         "1w" => 14,
-        "1y" => 12,
+        "1m" => 30,
         _ => 30,
     };
 
@@ -336,7 +336,7 @@ fn calculate_pulse_statistics(time_range: &str, pulse_history: &UseStateHandle<O
         "1h" => 30,
         "1d" => 24,
         "1w" => 14,
-        "1y" => 12,
+        "1m" => 30,
         _ => 30,
     };
     
@@ -406,12 +406,12 @@ fn calculate_interval_times(time_range: &str, index: usize, total_boxes: usize, 
             let label = format!("{} {}", start_time.format("%d/%m"), period);
             (start_time, end_time, label)
         },
-        "1y" => {
-            // 12 boxes, monthly intervals
-            let months_back = total_boxes - index;
-            let start_time = *now - Duration::days((months_back * 30) as i64);
-            let end_time = start_time + Duration::days(30);
-            let label = start_time.format("%b").to_string();
+        "1m" => {
+            // 30 boxes, daily intervals
+            let days_back = total_boxes - index;
+            let end_time = *now - Duration::days((days_back - 1) as i64);
+            let start_time = end_time - Duration::days(1);
+            let label = start_time.format("%d/%m").to_string();
             (start_time, end_time, label)
         },
         _ => {
@@ -474,7 +474,7 @@ fn get_time_range_description(time_range: &str) -> String {
         "1h" => "30 boxes, 2-minute intervals".to_string(),
         "1d" => "24 boxes, hourly intervals".to_string(),
         "1w" => "14 boxes, 12-hour day/night intervals".to_string(),
-        "1y" => "12 boxes, monthly intervals".to_string(),
+        "1m" => "30 boxes, daily intervals".to_string(),
         _ => "Time intervals".to_string(),
     }
 }

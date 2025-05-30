@@ -122,7 +122,7 @@ pub fn trigger_visualization(props: &TriggerVisualizationProps) -> Html {
         <div class="trigger-visualization">
             <div class="trigger-viz-header">
                 <h3>{"Digital Trigger: "}{&props.topic}</h3>
-                <button onclick={manual_refresh} class="refresh-btn">{"Refresh"}</button>
+                <button onclick={manual_refresh} class="btn">{"Refresh"}</button>
             </div>
 
             if *loading {

@@ -32,6 +32,89 @@ button {
     text-shadow: none !important;
 }
 
+/* Standardized Button Styles */
+.btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid #5a5a60;
+    border-radius: 4px;
+    background: #4a4a50;
+    color: #f0f0f0;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn:hover {
+    background: #5a5a60;
+    border-color: var(--accent-color);
+}
+
+.btn:active {
+    background: #3a3a40;
+}
+
+.btn.btn-primary {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #ffffff;
+}
+
+.btn.btn-primary:hover {
+    background: #cc1619;
+    border-color: #cc1619;
+}
+
+.btn.btn-active, .btn.active {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #ffffff;
+}
+
+.btn.btn-small {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.btn.btn-large {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+}
+
+/* Button groups */
+.btn-group {
+    display: flex;
+    gap: 4px;
+    background-color: #2a2a30;
+    padding: 4px;
+    border-radius: 6px;
+}
+
+.btn-group .btn {
+    background-color: transparent;
+    border: none;
+    color: #a0a0a0;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.btn-group .btn:hover {
+    background-color: #3a3a40;
+    color: #e0e0e0;
+    border: none;
+}
+
+.btn-group .btn.active {
+    background-color: var(--accent-color);
+    color: #ffffff;
+    border: none;
+}
+
 /* Loading, Error, and Empty States */
 .loading, .error, .device-list-empty, .topic-list-empty {
     padding: 15px;
