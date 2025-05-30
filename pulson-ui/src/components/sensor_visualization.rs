@@ -371,7 +371,7 @@ async fn fetch_sensor_history(device_id: &str, topic: &str) -> Result<SensorHist
     let token = LocalStorage::get::<String>("pulson_token")
         .map_err(|_| "No authentication token found".to_string())?;
 
-    let url = format!("/api/devices/{}/history?time_range=1h&topic={}", device_id, topic);
+    let url = format!("/api/devices/{}/data?topic={}&type=sensor", device_id, topic);
 
     let request = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -380,10 +380,23 @@ async fn fetch_sensor_history(device_id: &str, topic: &str) -> Result<SensorHist
         .map_err(|e| format!("Network error: {}", e))?;
 
     if request.status() == 200 {
-        request
-            .json::<SensorHistoryData>()
+        let response: Value = request
+            .json()
             .await
-            .map_err(|e| format!("Failed to parse response: {}", e))
+            .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+        // Transform the data response to match our expected format
+        let data = response.get("data")
+            .and_then(|d| d.as_array())
+            .cloned()
+            .unwrap_or_default();
+
+        Ok(SensorHistoryData {
+            time_range: "1d".to_string(),
+            start_time: "".to_string(),
+            end_time: "".to_string(),
+            data,
+        })
     } else {
         Err(format!("Server error: {}", request.status()))
     }
