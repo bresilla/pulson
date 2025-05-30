@@ -5,7 +5,7 @@ use chrono::Utc;
 use serde_json;
 use std::sync::{Arc, Mutex};
 use warp::{
-    body::json as warp_body_json, http::StatusCode, reply::{json as warp_json, with_status}, Filter, Rejection,
+    body::{json as warp_body_json, content_length_limit}, http::StatusCode, reply::{json as warp_json, with_status}, Filter, Rejection,
 };
 
 #[derive(serde::Deserialize)]
@@ -35,6 +35,7 @@ pub fn pulse(
     warp::post()
         .and(warp::path!("api" / "pulse"))
         .and(auth)
+        .and(content_length_limit(50 * 1024 * 1024)) // 10MB limit for large images
         .and(warp_body_json())
         .map(move |username: String, payload: PulsePayload| {
             let ts = Utc::now().to_rfc3339();
